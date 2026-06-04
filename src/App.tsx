@@ -121,7 +121,7 @@ export default function App() {
     // Automatically change associated room's status to Occupied and increment occupants counts!
     const targetRoomNumber = newTenantData.roomAssignment.replace("Room ", "");
     const targetRoom = rooms.find(r => r.number === targetRoomNumber);
-    
+
     if (targetRoom) {
       const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
       const roomSuccess = await api.updateRoom(targetRoom.id, {
@@ -162,7 +162,7 @@ export default function App() {
       id: `room-${Date.now()}`,
       ...newRoomData
     };
-    
+
     const success = await api.createRoom(newRoom);
     if (!success) {
       alert("Failed to create room in database");
@@ -189,7 +189,7 @@ export default function App() {
     if (!targetRoom) return;
 
     const nextOccupants = nextStatus === "Occupied" ? (targetRoom.currentOccupants > 0 ? targetRoom.currentOccupants : 1) : 0;
-    
+
     const success = await api.updateRoom(roomId, {
       status: nextStatus,
       currentOccupants: nextOccupants
@@ -241,7 +241,7 @@ export default function App() {
   // E. Dynamic billing simulator generator
   const handleGenerateBills = () => {
     const newAugustBills: Bill[] = [];
-    
+
     // Scan all occupied rooms
     rooms.forEach(room => {
       if (room.status === "Occupied") {
@@ -255,7 +255,7 @@ export default function App() {
 
           const elecSubtotal = Math.round(simulatedElecUnits * utilitySettings.electricityPrice);
           const waterSubtotal = Math.round(simulatedWaterCapacity * utilitySettings.waterPrice);
-          
+
           const totalFee = room.monthlyRent + elecSubtotal + waterSubtotal + utilitySettings.internetFee + utilitySettings.garbageFee;
 
           newAugustBills.push({
@@ -319,7 +319,7 @@ export default function App() {
     const bill = bills.find(b => b.id === billId);
     if (bill) {
       alert(`Dispatching digital invoice notice via standard SMTP registry!\n\nTo: Tenant inside ${bill.room}\nRegarding: Statement for ${bill.month}\nStatement Balance Due: ${bill.total.toLocaleString()} VND`);
-      
+
       const logItem: ActivityLog = {
         id: `log-${Date.now()}`,
         user: "Mail Server",
@@ -352,10 +352,10 @@ export default function App() {
   const handleAssignTenant = async (roomId: string, tenantId: string) => {
     const targetRoom = rooms.find(r => r.id === roomId);
     const targetTenant = tenants.find(t => t.id === tenantId);
-    
+
     if (targetRoom && targetTenant) {
       const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
-      
+
       const [tenantSuccess, roomSuccess] = await Promise.all([
         api.updateTenant(tenantId, { roomAssignment: `Room ${targetRoom.number}` }),
         api.updateRoom(roomId, { status: "Occupied", currentOccupants: newOccupants })
@@ -397,12 +397,96 @@ export default function App() {
     }
   };
 
+  // J. Remove Tenant from Room
+  const handleRemoveTenantFromRoom = async (roomId: string, tenantId: string) => {
+    const targetRoom = rooms.find(r => r.id === roomId);
+    const targetTenant = tenants.find(t => t.id === tenantId);
+    
+    if (targetRoom && targetTenant) {
+      const newOccupants = Math.max(targetRoom.currentOccupants - 1, 0);
+      const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
+      
+      const [tenantSuccess, roomSuccess] = await Promise.all([
+        api.updateTenant(tenantId, { roomAssignment: "" }),
+        api.updateRoom(roomId, { status: newStatus, currentOccupants: newOccupants })
+      ]);
+
+      if (!tenantSuccess || !roomSuccess) {
+        alert("Failed to remove tenant in database");
+        return;
+      }
+
+      setTenants(prev => prev.map(t => {
+        if (t.id === tenantId) {
+          return { ...t, roomAssignment: "" };
+        }
+        return t;
+      }));
+
+      setRooms(prev => prev.map(room => {
+        if (room.id === roomId) {
+          return {
+            ...room,
+            status: newStatus,
+            currentOccupants: newOccupants
+          };
+        }
+        return room;
+      }));
+
+      const logItem: ActivityLog = {
+        id: `log-${Date.now()}`,
+        user: targetTenant.name,
+        action: "was removed from",
+        detail: `Room ${targetRoom.number}`,
+        timeLabel: "Just now",
+        type: "tenant"
+      };
+      await api.createActivityLog(logItem);
+      setActivityLogs(prev => [logItem, ...prev]);
+    }
+  };
+
+  // K. Delete a Room
+  const handleDeleteRoom = async (roomId: string) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this room? This action cannot be undone.");
+    if (!confirmDelete) return;
+
+    const targetRoom = rooms.find(r => r.id === roomId);
+    if (!targetRoom) return;
+
+    // Optional: check if room is occupied and warn
+    if (targetRoom.currentOccupants > 0) {
+      alert("Cannot delete an occupied room. Please remove or reassign tenants first.");
+      return;
+    }
+
+    const success = await api.deleteRoom(roomId);
+    if (!success) {
+      alert("Failed to delete room from database");
+      return;
+    }
+
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+
+    const logItem: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user: "System Admin",
+      action: "deleted room",
+      detail: `Room ${targetRoom.number}`,
+      timeLabel: "Just now",
+      type: "alert"
+    };
+    await api.createActivityLog(logItem);
+    setActivityLogs(prev => [logItem, ...prev]);
+  };
+
   // Routing render helper
   const renderActiveView = () => {
     switch (currentView) {
       case "dashboard":
         return (
-          <DashboardView 
+          <DashboardView
             rooms={rooms}
             tenants={tenants}
             bills={bills}
@@ -412,7 +496,7 @@ export default function App() {
         );
       case "rooms":
         return (
-          <RoomsView 
+          <RoomsView
             rooms={rooms}
             bills={bills}
             tenants={tenants}
@@ -421,11 +505,14 @@ export default function App() {
             onEditRoomStatus={handleEditRoomStatus}
             onUpdateRoom={handleUpdateRoom}
             onAssignTenant={handleAssignTenant}
+            onRemoveTenantFromRoom={handleRemoveTenantFromRoom}
+            onDeleteRoom={handleDeleteRoom}
+            onNavigate={setCurrentView}
           />
         );
       case "tenants":
         return (
-          <TenantsView 
+          <TenantsView
             tenants={tenants}
             rooms={rooms}
             searchQuery={globalSearch}
@@ -450,9 +537,9 @@ export default function App() {
                 if (targetRoom) {
                   const newOccupants = Math.max((targetRoom.currentOccupants || 1) - 1, 0);
                   const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
-                  
+
                   await api.updateRoom(targetRoom.id, { currentOccupants: newOccupants, status: newStatus });
-                  
+
                   setRooms(prevRooms => prevRooms.map(room => {
                     if (room.id === targetRoom.id) {
                       return {
@@ -483,7 +570,7 @@ export default function App() {
         );
       case "bills":
         return (
-          <BillsView 
+          <BillsView
             bills={bills}
             rooms={rooms}
             utilitySettings={utilitySettings}
@@ -496,7 +583,7 @@ export default function App() {
       case "templates":
       case "settings":
         return (
-          <TemplatesView 
+          <TemplatesView
             templates={templates}
             utilitySettings={utilitySettings}
             activityLogs={activityLogs}
@@ -506,7 +593,7 @@ export default function App() {
         );
       case "register":
         return (
-          <RegisterTenantView 
+          <RegisterTenantView
             rooms={rooms}
             onRegister={handleRegisterTenant}
             onNavigate={setCurrentView}
@@ -514,7 +601,7 @@ export default function App() {
         );
       default:
         return (
-          <DashboardView 
+          <DashboardView
             rooms={rooms}
             tenants={tenants}
             bills={bills}
@@ -543,7 +630,7 @@ export default function App() {
   return (
     <div id="propria-layout-root" className="min-h-screen bg-[#f7f9fb] flex select-none text-black">
       {/* Sidebar Navigation Panel */}
-      <Sidebar 
+      <Sidebar
         currentView={currentView}
         onViewChange={(view) => {
           setCurrentView(view);
@@ -553,12 +640,12 @@ export default function App() {
 
       {/* Global Header and Content Layout */}
       <div className="flex-1 pl-[240px] flex flex-col min-h-screen">
-        <Header 
+        <Header
           currentView={currentView}
           searchQuery={globalSearch}
           onSearchChange={setGlobalSearch}
         />
-        
+
         {/* Render View Container */}
         <main className="flex-grow pt-24 px-8 pb-12 overflow-y-auto">
           {renderActiveView()}

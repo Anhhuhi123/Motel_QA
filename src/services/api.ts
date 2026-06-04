@@ -141,5 +141,12 @@ export const api = {
     const { error } = await supabase.from('activity_logs').insert(this.toSnakeCase(log));
     if (error) console.error('Error creating log:', error);
     return !error;
+  },
+
+  async deleteRoom(id: string): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('rooms').delete().eq('id', id);
+    if (error) console.error('Error deleting room:', error);
+    return !error;
   }
 };

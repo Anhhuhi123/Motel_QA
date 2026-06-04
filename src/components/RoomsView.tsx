@@ -5,19 +5,20 @@
 
 import { useState, FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { 
-  Plus, 
-  Search, 
-  Eye, 
-  Edit2, 
-  ArrowRight, 
-  CheckCircle, 
-  CreditCard, 
-  Wrench, 
-  Sparkles, 
-  ChevronLeft, 
+import {
+  Plus,
+  Search,
+  Eye,
+  Edit2,
+  ArrowRight,
+  CheckCircle,
+  CreditCard,
+  Wrench,
+  Sparkles,
+  ChevronLeft,
   ChevronRight,
-  X
+  X,
+  Trash2
 } from "lucide-react";
 import { Room, RoomStatus, Bill, Tenant } from "../types";
 import { formatVND } from "../utils";
@@ -31,23 +32,29 @@ interface RoomsViewProps {
   onEditRoomStatus: (roomId: string, status: RoomStatus) => void;
   onUpdateRoom?: (roomId: string, updates: Partial<Room>) => void;
   onAssignTenant?: (roomId: string, tenantId: string) => void;
+  onRemoveTenantFromRoom?: (roomId: string, tenantId: string) => void;
+  onDeleteRoom?: (roomId: string) => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function RoomsView({ 
-  rooms = [], 
+export default function RoomsView({
+  rooms = [],
   bills = [],
   tenants = [],
   searchQuery: headerSearchQuery,
   onAddRoom,
   onEditRoomStatus,
   onUpdateRoom,
-  onAssignTenant
+  onAssignTenant,
+  onRemoveTenantFromRoom,
+  onDeleteRoom,
+  onNavigate
 }: RoomsViewProps) {
   const [localSearch, setLocalSearch] = useState("");
 
   const occupiedRoomsCount = rooms.filter(r => r.status === "Occupied").length;
-  const occupancyRate = rooms.length > 0 
-    ? Math.round((occupiedRoomsCount / rooms.length) * 100) 
+  const occupancyRate = rooms.length > 0
+    ? Math.round((occupiedRoomsCount / rooms.length) * 100)
     : 0;
   const [selectedStatus, setSelectedStatus] = useState("All Status");
   const [selectedProperty, setSelectedProperty] = useState("All Properties");
@@ -78,18 +85,18 @@ export default function RoomsView({
   // Filter strategy
   const filteredRooms = rooms.filter((room) => {
     // Search matching
-    const matchesSearch = 
+    const matchesSearch =
       (room.number || '').toLowerCase().includes(activeSearch.toLowerCase()) ||
       (room.name?.toLowerCase() || '').includes(activeSearch.toLowerCase()) ||
       (room.wing?.toLowerCase() || '').includes(activeSearch.toLowerCase());
 
     // Status matching
-    const matchesStatus = 
-      selectedStatus === "All Status" || 
+    const matchesStatus =
+      selectedStatus === "All Status" ||
       room.status === selectedStatus;
 
     // Property matching (we can map floor context as property category for mock)
-    const matchesProperty = 
+    const matchesProperty =
       selectedProperty === "All Properties" ||
       (selectedProperty === "Grand Plaza" && room.floor === 1) ||
       (selectedProperty === "North Lofts" && room.floor === 2) ||
@@ -132,7 +139,7 @@ export default function RoomsView({
           <h2 className="text-3xl font-bold text-black tracking-tight font-display">Rooms</h2>
           <p className="text-xs text-[#45464d] mt-1">Total {rooms.length} rooms across managed properties</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsAddModalOpen(true)}
           className="bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
         >
@@ -145,7 +152,7 @@ export default function RoomsView({
       <div className="bg-white border border-[#c6c6cd] rounded-xl p-4 flex flex-wrap items-center gap-4 shadow-2xs">
         <div className="flex-grow min-w-[200px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#76777d] w-4 h-4" />
-          <input 
+          <input
             type="text"
             value={localSearch}
             onChange={(e) => { setLocalSearch(e.target.value); setCurrentPage(1); }}
@@ -157,7 +164,7 @@ export default function RoomsView({
         {/* Status Dropdown */}
         <div className="flex items-center gap-2">
           <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Status:</label>
-          <select 
+          <select
             value={selectedStatus}
             onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
             className="bg-[#f2f4f6] border border-transparent hover:border-[#c6c6cd] rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-black transition-all"
@@ -172,7 +179,7 @@ export default function RoomsView({
         {/* Property Dropdown */}
         <div className="flex items-center gap-2">
           <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Property:</label>
-          <select 
+          <select
             value={selectedProperty}
             onChange={(e) => { setSelectedProperty(e.target.value); setCurrentPage(1); }}
             className="bg-[#f2f4f6] border border-transparent hover:border-[#c6c6cd] rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-black transition-all"
@@ -186,7 +193,7 @@ export default function RoomsView({
 
         {/* Clear Trigger */}
         {(localSearch || selectedStatus !== "All Status" || selectedProperty !== "All Properties") && (
-          <button 
+          <button
             onClick={handleClearFilters}
             className="text-[#0051d5] text-xs font-bold hover:underline px-2 cursor-pointer"
           >
@@ -211,8 +218,8 @@ export default function RoomsView({
             <tbody className="divide-y divide-[#c6c6cd]/30">
               {paginatedRooms.length > 0 ? (
                 paginatedRooms.map((room) => {
-                  const percentCapacity = room.maxOccupants > 0 
-                    ? Math.round((room.currentOccupants / room.maxOccupants) * 100) 
+                  const percentCapacity = room.maxOccupants > 0
+                    ? Math.round((room.currentOccupants / room.maxOccupants) * 100)
                     : 0;
 
                   return (
@@ -229,20 +236,18 @@ export default function RoomsView({
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center justify-center w-28 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
-                          room.status === "Occupied" 
-                            ? "bg-[#316bf3]/10 text-[#0051d5] border-[#316bf3]/20" 
-                            : room.status === "Available" 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                        <span className={`inline-flex items-center justify-center w-28 px-2.5 py-1 rounded-full text-[10px] font-bold border ${room.status === "Occupied"
+                            ? "bg-[#316bf3]/10 text-[#0051d5] border-[#316bf3]/20"
+                            : room.status === "Available"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                               : "bg-red-50 text-red-700 border-red-100"
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                            room.status === "Occupied" 
-                              ? "bg-blue-600" 
-                              : room.status === "Available" 
-                                ? "bg-emerald-500" 
+                          }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${room.status === "Occupied"
+                              ? "bg-blue-600"
+                              : room.status === "Available"
+                                ? "bg-emerald-500"
                                 : "bg-red-500"
-                          }`} />
+                            }`} />
                           {room.status}
                         </span>
                       </td>
@@ -255,14 +260,13 @@ export default function RoomsView({
                             {room.currentOccupants}/{room.maxOccupants}
                           </span>
                           <div className="w-16 h-1.5 bg-[#eceef0] rounded-full overflow-hidden shrink-0">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-300 ${
-                                room.status === "Occupied" 
-                                  ? "bg-[#316bf3]" 
-                                  : room.status === "Available" 
-                                    ? "bg-emerald-500" 
+                            <div
+                              className={`h-full rounded-full transition-all duration-300 ${room.status === "Occupied"
+                                  ? "bg-[#316bf3]"
+                                  : room.status === "Available"
+                                    ? "bg-emerald-500"
                                     : "bg-red-500"
-                              }`}
+                                }`}
                               style={{ width: `${percentCapacity}%` }}
                             ></div>
                           </div>
@@ -271,7 +275,7 @@ export default function RoomsView({
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
                           {/* Cycle room status trigger for interactivity */}
-                          <button 
+                          <button
                             onClick={() => {
                               const nextStatusMap: Record<RoomStatus, RoomStatus> = {
                                 "Available": "Occupied",
@@ -285,7 +289,7 @@ export default function RoomsView({
                           >
                             Cycle Status
                           </button>
-                          <button 
+                          <button
                             onClick={() => {
                               setEditingRoom(room);
                               setSelectedTenantToAssign("");
@@ -294,6 +298,17 @@ export default function RoomsView({
                             className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors cursor-pointer"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (onDeleteRoom) {
+                                onDeleteRoom(room.id);
+                              }
+                            }}
+                            title="Delete Room"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -317,7 +332,7 @@ export default function RoomsView({
             Showing {filteredRooms.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + itemsPerPage, filteredRooms.length)} of {filteredRooms.length} rooms
           </span>
           <div className="flex items-center gap-2">
-            <button 
+            <button
               disabled={currentPage === 1}
               onClick={() => setCurrentPage(prev => prev - 1)}
               className="p-1.5 rounded-lg border border-[#c6c6cd] bg-white text-xs text-[#45464d] hover:bg-gray-100 disabled:opacity-50"
@@ -325,19 +340,18 @@ export default function RoomsView({
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             {Array.from({ length: totalPages }).map((_, idx) => (
-              <button 
+              <button
                 key={idx}
                 onClick={() => setCurrentPage(idx + 1)}
-                className={`px-2.5 py-1 text-xs font-bold rounded ${
-                  currentPage === idx + 1 
-                    ? "bg-black text-white" 
+                className={`px-2.5 py-1 text-xs font-bold rounded ${currentPage === idx + 1
+                    ? "bg-black text-white"
                     : "text-[#45464d] hover:bg-white"
-                }`}
+                  }`}
               >
                 {idx + 1}
               </button>
             ))}
-            <button 
+            <button
               disabled={currentPage === totalPages}
               onClick={() => setCurrentPage(prev => prev + 1)}
               className="p-1.5 rounded-lg border border-[#c6c6cd] bg-white text-xs text-[#45464d] hover:bg-gray-100 disabled:opacity-50"
@@ -400,7 +414,7 @@ export default function RoomsView({
               {rooms.filter(r => r.status === "Available").length.toString().padStart(2, "0")}
             </p>
           </div>
-          <button 
+          <button
             onClick={() => { setSelectedStatus("Available"); setCurrentPage(1); }}
             className="inline-flex items-center text-xs font-bold text-emerald-400 mt-4 hover:text-white transition-colors"
           >
@@ -414,30 +428,30 @@ export default function RoomsView({
       {isAddModalOpen && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up">
-            <button 
+            <button
               onClick={() => setIsAddModalOpen(false)}
               className="absolute top-4 right-4 text-[#45464d] hover:text-black cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-lg font-bold text-black mb-4 font-display">Create New Room</h3>
-            
+
             <form onSubmit={handleSubmitRoom} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Room Number *</label>
-                  <input 
-                    type="text" 
-                    value={roomNumber} 
-                    onChange={(e) => setRoomNumber(e.target.value)} 
-                    placeholder="e.g. 105" 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
-                    required 
+                  <input
+                    type="text"
+                    value={roomNumber}
+                    onChange={(e) => setRoomNumber(e.target.value)}
+                    placeholder="e.g. 105"
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Room Type</label>
-                  <select 
+                  <select
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
@@ -453,21 +467,21 @@ export default function RoomsView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Floor Level</label>
-                  <input 
-                    type="number" 
-                    value={roomFloor} 
-                    onChange={(e) => setRoomFloor(Number(e.target.value))} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="number"
+                    value={roomFloor}
+                    onChange={(e) => setRoomFloor(Number(e.target.value))}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Wing Sector</label>
-                  <input 
-                    type="text" 
-                    value={roomWing} 
-                    onChange={(e) => setRoomWing(e.target.value)} 
-                    placeholder="North Wing" 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="text"
+                    value={roomWing}
+                    onChange={(e) => setRoomWing(e.target.value)}
+                    placeholder="North Wing"
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
               </div>
@@ -475,16 +489,16 @@ export default function RoomsView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Max Occupants</label>
-                  <input 
-                    type="number" 
-                    value={roomMaxOccupants} 
-                    onChange={(e) => setRoomMaxOccupants(Number(e.target.value))} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="number"
+                    value={roomMaxOccupants}
+                    onChange={(e) => setRoomMaxOccupants(Number(e.target.value))}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Status</label>
-                  <select 
+                  <select
                     value={roomStatus}
                     onChange={(e) => setRoomStatus(e.target.value as RoomStatus)}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
@@ -498,24 +512,24 @@ export default function RoomsView({
 
               <div>
                 <label className="block text-xs font-bold text-[#45464d] mb-1">Monthly Rent (VND) *</label>
-                <input 
-                  type="number" 
-                  value={roomRent} 
-                  onChange={(e) => setRoomRent(Number(e.target.value))} 
-                  className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
-                  required 
+                <input
+                  type="number"
+                  value={roomRent}
+                  onChange={(e) => setRoomRent(Number(e.target.value))}
+                  className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                  required
                 />
               </div>
 
               <div className="pt-4 flex gap-3">
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
                   className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
@@ -532,40 +546,40 @@ export default function RoomsView({
       {editingRoom && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
-            <button 
+            <button
               onClick={() => setEditingRoom(null)}
               className="absolute top-4 right-4 text-[#45464d] hover:text-black cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-lg font-bold text-black mb-4 font-display">Edit Room {editingRoom.number}</h3>
-            
-            <form 
+
+            <form
               onSubmit={(e) => {
                 e.preventDefault();
                 if (onUpdateRoom) {
                   onUpdateRoom(editingRoom.id, editingRoom);
                 }
                 setEditingRoom(null);
-              }} 
+              }}
               className="space-y-4"
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Room Number *</label>
-                  <input 
-                    type="text" 
-                    value={editingRoom.number} 
-                    onChange={(e) => setEditingRoom({...editingRoom, number: e.target.value})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
-                    required 
+                  <input
+                    type="text"
+                    value={editingRoom.number}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, number: e.target.value })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    required
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Room Type</label>
-                  <select 
+                  <select
                     value={editingRoom.name}
-                    onChange={(e) => setEditingRoom({...editingRoom, name: e.target.value})}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, name: e.target.value })}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
                     <option>Standard Studio</option>
@@ -579,20 +593,20 @@ export default function RoomsView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Floor Level</label>
-                  <input 
-                    type="number" 
-                    value={editingRoom.floor} 
-                    onChange={(e) => setEditingRoom({...editingRoom, floor: Number(e.target.value)})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="number"
+                    value={editingRoom.floor}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, floor: Number(e.target.value) })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Wing Sector</label>
-                  <input 
-                    type="text" 
-                    value={editingRoom.wing} 
-                    onChange={(e) => setEditingRoom({...editingRoom, wing: e.target.value})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="text"
+                    value={editingRoom.wing}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, wing: e.target.value })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
               </div>
@@ -600,20 +614,20 @@ export default function RoomsView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Max Occupants</label>
-                  <input 
-                    type="number" 
-                    value={editingRoom.maxOccupants} 
-                    onChange={(e) => setEditingRoom({...editingRoom, maxOccupants: Number(e.target.value)})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="number"
+                    value={editingRoom.maxOccupants}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, maxOccupants: Number(e.target.value) })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Current Occupants</label>
-                  <input 
-                    type="number" 
-                    value={editingRoom.currentOccupants} 
-                    onChange={(e) => setEditingRoom({...editingRoom, currentOccupants: Number(e.target.value)})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  <input
+                    type="number"
+                    value={editingRoom.currentOccupants}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, currentOccupants: Number(e.target.value) })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
               </div>
@@ -621,9 +635,9 @@ export default function RoomsView({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Status</label>
-                  <select 
+                  <select
                     value={editingRoom.status}
-                    onChange={(e) => setEditingRoom({...editingRoom, status: e.target.value as RoomStatus})}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, status: e.target.value as RoomStatus })}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
                     <option value="Available">Available</option>
@@ -633,13 +647,73 @@ export default function RoomsView({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Monthly Rent (VND) *</label>
-                  <input 
-                    type="number" 
-                    value={editingRoom.monthlyRent} 
-                    onChange={(e) => setEditingRoom({...editingRoom, monthlyRent: Number(e.target.value)})} 
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
-                    required 
+                  <input
+                    type="number"
+                    value={editingRoom.monthlyRent}
+                    onChange={(e) => setEditingRoom({ ...editingRoom, monthlyRent: Number(e.target.value) })}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    required
                   />
+                </div>
+              </div>
+
+              {/* Current Occupants Information Section */}
+              <div className="pt-4 border-t border-[#c6c6cd]">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-bold text-[#45464d]">Current Occupants Information</label>
+                  <span className="text-xs font-bold bg-[#f2f4f6] border border-[#c6c6cd] px-2 py-0.5 rounded-md">
+                    {tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}`).length} / {editingRoom.maxOccupants}
+                  </span>
+                </div>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}`).length > 0 ? (
+                    tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}`).map(tenant => (
+                      <div key={tenant.id} className="flex justify-between items-center bg-[#f7f9fb] p-2 rounded-lg border border-[#c6c6cd]/50">
+                        <div className="flex items-center gap-2">
+                          {tenant.avatarUrl ? (
+                            <img src={tenant.avatarUrl} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-[#c6c6cd]" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700">
+                              {(tenant.name || 'U').substring(0, 2).toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-[11px] font-bold text-black">{tenant.name}</p>
+                            <p className="text-[10px] text-[#76777d]">{tenant.phone} • ID: {tenant.nationalId}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${tenant.depositStatus === "Paid"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                              : tenant.depositStatus === "Partial"
+                                ? "bg-amber-50 text-amber-700 border-amber-100"
+                                : "bg-red-50 text-red-700 border-red-100"
+                            }`}>
+                            {tenant.depositStatus}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to remove this tenant from the room?") && onRemoveTenantFromRoom) {
+                                onRemoveTenantFromRoom(editingRoom.id, tenant.id);
+                                setEditingRoom({
+                                  ...editingRoom,
+                                  status: editingRoom.currentOccupants - 1 <= 0 ? "Available" : editingRoom.status,
+                                  currentOccupants: Math.max(editingRoom.currentOccupants - 1, 0)
+                                });
+                              }
+                            }}
+                            className="p-1 text-[#76777d] hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                            title="Remove tenant from room"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-[#76777d] italic py-1">No tenants currently assigned to this room.</p>
+                  )}
                 </div>
               </div>
 
@@ -647,7 +721,7 @@ export default function RoomsView({
               <div className="pt-4 border-t border-[#c6c6cd]">
                 <label className="block text-xs font-bold text-[#45464d] mb-1">Assign Existing Tenant</label>
                 <div className="flex gap-2">
-                  <select 
+                  <select
                     value={selectedTenantToAssign}
                     onChange={(e) => setSelectedTenantToAssign(e.target.value)}
                     className="flex-1 border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
@@ -657,7 +731,7 @@ export default function RoomsView({
                       <option key={t.id} value={t.id}>{t.name} (Currently: {t.roomAssignment || 'None'})</option>
                     ))}
                   </select>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       if (selectedTenantToAssign && onAssignTenant) {
@@ -681,14 +755,14 @@ export default function RoomsView({
               </div>
 
               <div className="pt-4 flex gap-3">
-                <button 
+                <button
                   type="button"
                   onClick={() => setEditingRoom(null)}
                   className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
