@@ -19,23 +19,29 @@ import {
   ChevronRight,
   X
 } from "lucide-react";
-import { Room, RoomStatus, Bill } from "../types";
+import { Room, RoomStatus, Bill, Tenant } from "../types";
 import { formatVND } from "../utils";
 
 interface RoomsViewProps {
   rooms: Room[];
   bills?: Bill[];
+  tenants?: Tenant[];
   searchQuery: string;
   onAddRoom: (room: Omit<Room, "id">) => void;
   onEditRoomStatus: (roomId: string, status: RoomStatus) => void;
+  onUpdateRoom?: (roomId: string, updates: Partial<Room>) => void;
+  onAssignTenant?: (roomId: string, tenantId: string) => void;
 }
 
 export default function RoomsView({ 
   rooms = [], 
   bills = [],
+  tenants = [],
   searchQuery: headerSearchQuery,
   onAddRoom,
-  onEditRoomStatus
+  onEditRoomStatus,
+  onUpdateRoom,
+  onAssignTenant
 }: RoomsViewProps) {
   const [localSearch, setLocalSearch] = useState("");
 
@@ -47,6 +53,8 @@ export default function RoomsView({
   const [selectedProperty, setSelectedProperty] = useState("All Properties");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [selectedTenantToAssign, setSelectedTenantToAssign] = useState<string>("");
 
   // New room form state
   const [roomNumber, setRoomNumber] = useState("");
@@ -193,11 +201,11 @@ export default function RoomsView({
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#f2f4f6] border-b border-[#c6c6cd]/50">
               <tr>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d]">Room Number</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d]">Status</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d]">Monthly Rent</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d]">Occupants</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] text-right">Actions</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Room Number</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Status</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Monthly Rent</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Occupants</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] text-right w-[20%]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#c6c6cd]/30">
@@ -221,7 +229,7 @@ export default function RoomsView({
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                        <span className={`inline-flex items-center justify-center w-28 px-2.5 py-1 rounded-full text-[10px] font-bold border ${
                           room.status === "Occupied" 
                             ? "bg-[#316bf3]/10 text-[#0051d5] border-[#316bf3]/20" 
                             : room.status === "Available" 
@@ -273,14 +281,18 @@ export default function RoomsView({
                               onEditRoomStatus(room.id, nextStatusMap[room.status]);
                             }}
                             title="Cycle Room Status"
-                            className="p-1 px-2 text-[10px] items-center gap-1 border border-[#c6c6cd] hover:border-black rounded text-[#45464d] hover:text-black font-semibold"
+                            className="p-1 px-2 text-[10px] items-center gap-1 border border-[#c6c6cd] hover:border-black rounded text-[#45464d] hover:text-black font-semibold cursor-pointer"
                           >
                             Cycle Status
                           </button>
-                          <button className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors">
+                          <button 
+                            onClick={() => {
+                              setEditingRoom(room);
+                              setSelectedTenantToAssign("");
+                            }}
+                            title="Edit Room"
+                            className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors cursor-pointer"
+                          >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -508,6 +520,179 @@ export default function RoomsView({
                   className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
                   Create Room
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Edit Room Modal overlay */}
+      {editingRoom && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setEditingRoom(null)}
+              className="absolute top-4 right-4 text-[#45464d] hover:text-black cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold text-black mb-4 font-display">Edit Room {editingRoom.number}</h3>
+            
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (onUpdateRoom) {
+                  onUpdateRoom(editingRoom.id, editingRoom);
+                }
+                setEditingRoom(null);
+              }} 
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Number *</label>
+                  <input 
+                    type="text" 
+                    value={editingRoom.number} 
+                    onChange={(e) => setEditingRoom({...editingRoom, number: e.target.value})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                    required 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Type</label>
+                  <select 
+                    value={editingRoom.name}
+                    onChange={(e) => setEditingRoom({...editingRoom, name: e.target.value})}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
+                  >
+                    <option>Standard Studio</option>
+                    <option>Deluxe Suite</option>
+                    <option>Executive Loft</option>
+                    <option>Presidential Suite</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Floor Level</label>
+                  <input 
+                    type="number" 
+                    value={editingRoom.floor} 
+                    onChange={(e) => setEditingRoom({...editingRoom, floor: Number(e.target.value)})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Wing Sector</label>
+                  <input 
+                    type="text" 
+                    value={editingRoom.wing} 
+                    onChange={(e) => setEditingRoom({...editingRoom, wing: e.target.value})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Max Occupants</label>
+                  <input 
+                    type="number" 
+                    value={editingRoom.maxOccupants} 
+                    onChange={(e) => setEditingRoom({...editingRoom, maxOccupants: Number(e.target.value)})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Current Occupants</label>
+                  <input 
+                    type="number" 
+                    value={editingRoom.currentOccupants} 
+                    onChange={(e) => setEditingRoom({...editingRoom, currentOccupants: Number(e.target.value)})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Status</label>
+                  <select 
+                    value={editingRoom.status}
+                    onChange={(e) => setEditingRoom({...editingRoom, status: e.target.value as RoomStatus})}
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
+                  >
+                    <option value="Available">Available</option>
+                    <option value="Occupied">Occupied</option>
+                    <option value="Maintenance">Maintenance</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Monthly Rent (VND) *</label>
+                  <input 
+                    type="number" 
+                    value={editingRoom.monthlyRent} 
+                    onChange={(e) => setEditingRoom({...editingRoom, monthlyRent: Number(e.target.value)})} 
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none" 
+                    required 
+                  />
+                </div>
+              </div>
+
+              {/* Assign Tenant Section */}
+              <div className="pt-4 border-t border-[#c6c6cd]">
+                <label className="block text-xs font-bold text-[#45464d] mb-1">Assign Existing Tenant</label>
+                <div className="flex gap-2">
+                  <select 
+                    value={selectedTenantToAssign}
+                    onChange={(e) => setSelectedTenantToAssign(e.target.value)}
+                    className="flex-1 border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
+                  >
+                    <option value="">-- Select a Tenant --</option>
+                    {tenants.filter(t => t.roomAssignment !== `Room ${editingRoom.number}`).map(t => (
+                      <option key={t.id} value={t.id}>{t.name} (Currently: {t.roomAssignment || 'None'})</option>
+                    ))}
+                  </select>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (selectedTenantToAssign && onAssignTenant) {
+                        onAssignTenant(editingRoom.id, selectedTenantToAssign);
+                        setSelectedTenantToAssign("");
+                        // Update local editing room state to reflect the new occupant count
+                        setEditingRoom({
+                          ...editingRoom,
+                          status: "Occupied",
+                          currentOccupants: Math.min(editingRoom.currentOccupants + 1, editingRoom.maxOccupants)
+                        });
+                        alert("Tenant assigned successfully!");
+                      }
+                    }}
+                    disabled={!selectedTenantToAssign}
+                    className="bg-[#0051d5] text-white px-4 rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Assign
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setEditingRoom(null)}
+                  className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
+                >
+                  Save Changes
                 </button>
               </div>
             </form>

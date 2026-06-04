@@ -229,7 +229,7 @@ export default function TenantsView({
                         <button 
                           onClick={() => onRemoveTenant(tenant.id)}
                           title="Evict or Remove Tenant"
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -287,7 +287,7 @@ export default function TenantsView({
 
       {/* Contract Agreement Viewer Dialog overlay */}
       {selectedContractTenant && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-100">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-scale-up">
             <button 
               onClick={() => setSelectedContractTenant(null)}

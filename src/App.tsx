@@ -103,27 +103,45 @@ export default function App() {
   // INTERACTIVE SYSTEM REDUCERS
 
   // A. Register New Tenant & transition Rooms status
-  const handleRegisterTenant = (newTenantData: Omit<Tenant, "id">) => {
+  const handleRegisterTenant = async (newTenantData: Omit<Tenant, "id">) => {
     const newId = `t-${Date.now()}`;
     const newTenant: Tenant = {
       id: newId,
       ...newTenantData
     };
 
+    const success = await api.createTenant(newTenant);
+    if (!success) {
+      alert("Failed to create tenant in database");
+      return;
+    }
+
     setTenants(prev => [newTenant, ...prev]);
 
     // Automatically change associated room's status to Occupied and increment occupants counts!
     const targetRoomNumber = newTenantData.roomAssignment.replace("Room ", "");
-    setRooms(prevRooms => prevRooms.map(room => {
-      if (room.number === targetRoomNumber) {
-        return {
-          ...room,
-          status: "Occupied",
-          currentOccupants: Math.min(room.currentOccupants + 1, room.maxOccupants)
-        };
+    const targetRoom = rooms.find(r => r.number === targetRoomNumber);
+    
+    if (targetRoom) {
+      const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
+      const roomSuccess = await api.updateRoom(targetRoom.id, {
+        status: "Occupied",
+        currentOccupants: newOccupants
+      });
+
+      if (roomSuccess) {
+        setRooms(prevRooms => prevRooms.map(room => {
+          if (room.id === targetRoom.id) {
+            return {
+              ...room,
+              status: "Occupied",
+              currentOccupants: newOccupants
+            };
+          }
+          return room;
+        }));
       }
-      return room;
-    }));
+    }
 
     // Generate recent activity log item
     const logItem: ActivityLog = {
@@ -134,15 +152,23 @@ export default function App() {
       timeLabel: "Just now",
       type: "tenant"
     };
+    await api.createActivityLog(logItem);
     setActivityLogs(prev => [logItem, ...prev]);
   };
 
   // B. Create a brand new Room
-  const handleAddRoom = (newRoomData: Omit<Room, "id">) => {
+  const handleAddRoom = async (newRoomData: Omit<Room, "id">) => {
     const newRoom: Room = {
       id: `room-${Date.now()}`,
       ...newRoomData
     };
+    
+    const success = await api.createRoom(newRoom);
+    if (!success) {
+      alert("Failed to create room in database");
+      return;
+    }
+
     setRooms(prev => [...prev, newRoom]);
 
     const logItem: ActivityLog = {
@@ -153,35 +179,48 @@ export default function App() {
       timeLabel: "Just now",
       type: "maintenance"
     };
+    await api.createActivityLog(logItem);
     setActivityLogs(prev => [logItem, ...prev]);
   };
 
   // C. Toggle / cycle room status (Occupied -> Maintenance -> Available)
-  const handleEditRoomStatus = (roomId: string, nextStatus: RoomStatus) => {
+  const handleEditRoomStatus = async (roomId: string, nextStatus: RoomStatus) => {
+    const targetRoom = rooms.find(r => r.id === roomId);
+    if (!targetRoom) return;
+
+    const nextOccupants = nextStatus === "Occupied" ? (targetRoom.currentOccupants > 0 ? targetRoom.currentOccupants : 1) : 0;
+    
+    const success = await api.updateRoom(roomId, {
+      status: nextStatus,
+      currentOccupants: nextOccupants
+    });
+
+    if (!success) {
+      alert("Failed to update room status in database");
+      return;
+    }
+
     setRooms(prev => prev.map(room => {
       if (room.id === roomId) {
         return {
           ...room,
           status: nextStatus,
-          // Clear occupants if status goes to Available or Maintenance
-          currentOccupants: nextStatus === "Occupied" ? room.currentOccupants || 1 : 0
+          currentOccupants: nextOccupants
         };
       }
       return room;
     }));
 
-    const room = rooms.find(r => r.id === roomId);
-    if (room) {
-      const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user: `Room ${room.number}`,
-        action: "status updated manually to",
-        detail: nextStatus,
-        timeLabel: "Just now",
-        type: "maintenance"
-      };
-      setActivityLogs(prev => [logItem, ...prev]);
-    }
+    const logItem: ActivityLog = {
+      id: `log-${Date.now()}`,
+      user: `Room ${targetRoom.number}`,
+      action: "status updated manually to",
+      detail: nextStatus,
+      timeLabel: "Just now",
+      type: "maintenance"
+    };
+    await api.createActivityLog(logItem);
+    setActivityLogs(prev => [logItem, ...prev]);
   };
 
   // D. Create Room/Utility pricing settings parameters
@@ -293,6 +332,71 @@ export default function App() {
     }
   };
 
+  // H. Update Room Details
+  const handleUpdateRoom = async (roomId: string, updates: Partial<Room>) => {
+    const success = await api.updateRoom(roomId, updates);
+    if (!success) {
+      alert("Failed to update room in database");
+      return;
+    }
+
+    setRooms(prev => prev.map(room => {
+      if (room.id === roomId) {
+        return { ...room, ...updates };
+      }
+      return room;
+    }));
+  };
+
+  // I. Assign Existing Tenant to a Room
+  const handleAssignTenant = async (roomId: string, tenantId: string) => {
+    const targetRoom = rooms.find(r => r.id === roomId);
+    const targetTenant = tenants.find(t => t.id === tenantId);
+    
+    if (targetRoom && targetTenant) {
+      const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
+      
+      const [tenantSuccess, roomSuccess] = await Promise.all([
+        api.updateTenant(tenantId, { roomAssignment: `Room ${targetRoom.number}` }),
+        api.updateRoom(roomId, { status: "Occupied", currentOccupants: newOccupants })
+      ]);
+
+      if (!tenantSuccess || !roomSuccess) {
+        alert("Failed to assign tenant in database");
+        return;
+      }
+
+      setTenants(prev => prev.map(t => {
+        if (t.id === tenantId) {
+          return { ...t, roomAssignment: `Room ${targetRoom.number}` };
+        }
+        return t;
+      }));
+
+      setRooms(prev => prev.map(room => {
+        if (room.id === roomId) {
+          return {
+            ...room,
+            status: "Occupied",
+            currentOccupants: newOccupants
+          };
+        }
+        return room;
+      }));
+
+      const logItem: ActivityLog = {
+        id: `log-${Date.now()}`,
+        user: targetTenant.name,
+        action: "was reassigned to",
+        detail: `Room ${targetRoom.number}`,
+        timeLabel: "Just now",
+        type: "tenant"
+      };
+      await api.createActivityLog(logItem);
+      setActivityLogs(prev => [logItem, ...prev]);
+    }
+  };
+
   // Routing render helper
   const renderActiveView = () => {
     switch (currentView) {
@@ -311,9 +415,12 @@ export default function App() {
           <RoomsView 
             rooms={rooms}
             bills={bills}
+            tenants={tenants}
             searchQuery={globalSearch}
             onAddRoom={handleAddRoom}
             onEditRoomStatus={handleEditRoomStatus}
+            onUpdateRoom={handleUpdateRoom}
+            onAssignTenant={handleAssignTenant}
           />
         );
       case "tenants":
@@ -322,17 +429,53 @@ export default function App() {
             tenants={tenants}
             rooms={rooms}
             searchQuery={globalSearch}
-            onRemoveTenant={(tenantId) => {
+            onRemoveTenant={async (tenantId) => {
+              const confirmDelete = window.confirm("Are you sure you want to remove this tenant?");
+              if (!confirmDelete) return;
+
+              const tenantToRemove = tenants.find(t => t.id === tenantId);
+
+              const success = await api.deleteTenant(tenantId);
+              if (!success) {
+                alert("Failed to delete tenant from database");
+                return;
+              }
+
               setTenants(prev => prev.filter(t => t.id !== tenantId));
+
+              // Decrease occupants in their room if assigned
+              if (tenantToRemove && tenantToRemove.roomAssignment) {
+                const roomNumber = tenantToRemove.roomAssignment.replace("Room ", "");
+                const targetRoom = rooms.find(r => r.number === roomNumber);
+                if (targetRoom) {
+                  const newOccupants = Math.max((targetRoom.currentOccupants || 1) - 1, 0);
+                  const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
+                  
+                  await api.updateRoom(targetRoom.id, { currentOccupants: newOccupants, status: newStatus });
+                  
+                  setRooms(prevRooms => prevRooms.map(room => {
+                    if (room.id === targetRoom.id) {
+                      return {
+                        ...room,
+                        currentOccupants: newOccupants,
+                        status: newStatus
+                      };
+                    }
+                    return room;
+                  }));
+                }
+              }
+
               // Log removal
               const logItem: ActivityLog = {
                 id: `log-${Date.now()}`,
                 user: "System Admin",
-                action: "evicted tenant ID",
-                detail: tenantId,
+                action: "evicted tenant",
+                detail: tenantToRemove?.name || tenantId,
                 timeLabel: "Just now",
                 type: "alert"
               };
+              await api.createActivityLog(logItem);
               setActivityLogs(prev => [logItem, ...prev]);
             }}
             onNavigate={setCurrentView}

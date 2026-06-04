@@ -25,6 +25,20 @@ export const api = {
     return obj;
   },
 
+  // Utility function to map camelCase to snake_case for DB inserts/updates
+  toSnakeCase(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(v => this.toSnakeCase(v));
+    } else if (obj !== null && obj.constructor === Object) {
+      return Object.keys(obj).reduce((result, key) => {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        result[snakeKey] = this.toSnakeCase(obj[key]);
+        return result;
+      }, {} as any);
+    }
+    return obj;
+  },
+
   async fetchRooms(): Promise<Room[]> {
     if (USE_MOCK_DATA) return initialRooms;
     const { data, error } = await supabase.from('rooms').select('*');
@@ -83,5 +97,49 @@ export const api = {
       return initialTemplates;
     }
     return this.toCamelCase(data || []) as DocumentTemplate[];
+  },
+
+  // --- MUTATION METHODS ---
+
+  async createTenant(tenant: Tenant): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('tenants').insert(this.toSnakeCase(tenant));
+    if (error) console.error('Error creating tenant:', error);
+    return !error;
+  },
+
+  async updateTenant(id: string, updates: Partial<Tenant>): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('tenants').update(this.toSnakeCase(updates)).eq('id', id);
+    if (error) console.error('Error updating tenant:', error);
+    return !error;
+  },
+
+  async deleteTenant(id: string): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('tenants').delete().eq('id', id);
+    if (error) console.error('Error deleting tenant:', error);
+    return !error;
+  },
+
+  async createRoom(room: Room): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('rooms').insert(this.toSnakeCase(room));
+    if (error) console.error('Error creating room:', error);
+    return !error;
+  },
+
+  async updateRoom(id: string, updates: Partial<Room>): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('rooms').update(this.toSnakeCase(updates)).eq('id', id);
+    if (error) console.error('Error updating room:', error);
+    return !error;
+  },
+
+  async createActivityLog(log: ActivityLog): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('activity_logs').insert(this.toSnakeCase(log));
+    if (error) console.error('Error creating log:', error);
+    return !error;
   }
 };
