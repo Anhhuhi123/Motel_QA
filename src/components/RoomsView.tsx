@@ -18,18 +18,20 @@ import {
   ChevronRight,
   X
 } from "lucide-react";
-import { Room, RoomStatus } from "../types";
+import { Room, RoomStatus, Bill } from "../types";
 import { formatVND } from "../utils";
 
 interface RoomsViewProps {
   rooms: Room[];
+  bills?: Bill[];
   searchQuery: string;
   onAddRoom: (room: Omit<Room, "id">) => void;
   onEditRoomStatus: (roomId: string, status: RoomStatus) => void;
 }
 
 export default function RoomsView({ 
-  rooms, 
+  rooms = [], 
+  bills = [],
   searchQuery: headerSearchQuery,
   onAddRoom,
   onEditRoomStatus
@@ -68,9 +70,9 @@ export default function RoomsView({
   const filteredRooms = rooms.filter((room) => {
     // Search matching
     const matchesSearch = 
-      room.number.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      room.name.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      room.wing.toLowerCase().includes(activeSearch.toLowerCase());
+      (room.number || '').toLowerCase().includes(activeSearch.toLowerCase()) ||
+      (room.name?.toLowerCase() || '').includes(activeSearch.toLowerCase()) ||
+      (room.wing?.toLowerCase() || '').includes(activeSearch.toLowerCase());
 
     // Status matching
     const matchesStatus = 
@@ -354,7 +356,9 @@ export default function RoomsView({
             <span className="text-xs font-bold text-[#0051d5]">Stable</span>
           </div>
           <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider0">Total Utility Revenue</p>
-          <p className="text-3xl font-bold text-black font-display mt-1">{formatVND(224000000)}</p>
+          <p className="text-3xl font-bold text-black font-display mt-1">
+            {formatVND(bills.reduce((sum, b) => sum + b.electricity + b.water, 0))}
+          </p>
         </div>
 
         <div className="bg-white p-6 rounded-xl border border-[#c6c6cd] hover:border-black/20 transition-all shadow-2xs">

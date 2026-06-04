@@ -17,18 +17,20 @@ import {
   FileCheck,
   X 
 } from "lucide-react";
-import { Tenant, DepositStatus } from "../types";
+import { Tenant, DepositStatus, Room } from "../types";
 import { formatVND } from "../utils";
 
 interface TenantsViewProps {
   tenants: Tenant[];
+  rooms?: Room[];
   searchQuery: string;
   onRemoveTenant: (tenantId: string) => void;
   onNavigate: (view: string) => void;
 }
 
 export default function TenantsView({ 
-  tenants, 
+  tenants = [], 
+  rooms = [],
   searchQuery: headerSearchQuery,
   onRemoveTenant,
   onNavigate 
@@ -43,11 +45,11 @@ export default function TenantsView({
   // Filter strategies
   const filteredTenants = tenants.filter((tenant) => {
     const matchesSearch = 
-      tenant.name.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      tenant.email.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      tenant.phone.includes(activeSearch) ||
-      tenant.nationalId.includes(activeSearch) ||
-      tenant.roomAssignment.toLowerCase().includes(activeSearch.toLowerCase());
+      (tenant.name?.toLowerCase() || '').includes(activeSearch.toLowerCase()) ||
+      (tenant.email?.toLowerCase() || '').includes(activeSearch.toLowerCase()) ||
+      (tenant.phone || '').includes(activeSearch) ||
+      (tenant.nationalId || '').includes(activeSearch) ||
+      (tenant.roomAssignment?.toLowerCase() || '').includes(activeSearch.toLowerCase());
 
     const matchesDeposit = 
       depositFilter === "All Status" || 
@@ -153,7 +155,7 @@ export default function TenantsView({
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200">
-                            {tenant.name.substring(0, 2).toUpperCase()}
+                            {(tenant.name || 'U').substring(0, 2).toUpperCase()}
                           </div>
                         )}
                         <div>
@@ -329,7 +331,11 @@ export default function TenantsView({
                 <p className="font-bold text-black">Điều 1: Mục đích & Giá thuê (Article 1: Object & Rent Fee)</p>
                 <ul className="list-disc pl-5 space-y-1 text-[#45464d]">
                   <li>Bên A đồng ý cho Bên B thuê phòng mã số (Assigned room code): <span className="font-bold text-black">{selectedContractTenant.roomAssignment}</span></li>
-                  <li>Giá thuê căn hộ cố định (Fixed Monthly Rental Price): <span className="font-bold text-black">{formatVND(4500000)} - {formatVND(12000000)} / tháng</span></li>
+                  <li>Giá thuê căn hộ cố định (Fixed Monthly Rental Price): <span className="font-bold text-black">
+                    {formatVND(
+                      rooms?.find(r => String(selectedContractTenant.roomAssignment || '').includes(String(r.number)))?.monthlyRent || 0
+                    )} / tháng
+                  </span></li>
                   <li>Ngày bắt đầu hợp đồng (Contract signature date): <span className="font-bold text-black font-mono">{selectedContractTenant.contractStart}</span></li>
                   <li>Deposit status recorded inside primary registry: <span className="font-bold text-emerald-600 uppercase font-mono">{selectedContractTenant.depositStatus}</span></li>
                 </ul>

@@ -35,10 +35,10 @@ interface DashboardViewProps {
 }
 
 export default function DashboardView({ 
-  rooms, 
-  tenants, 
-  bills, 
-  activityLogs, 
+  rooms = [], 
+  tenants = [], 
+  bills = [], 
+  activityLogs = [], 
   onNavigate 
 }: DashboardViewProps) {
   const [selectedRange, setSelectedRange] = useState("Last 6 Months");
@@ -66,14 +66,47 @@ export default function DashboardView({
   const estimatedMonthlyRevenue = Math.round(paidSum + outstandingSum);
   const unpaidBillsCount = bills.filter(b => b.status === "Unpaid" || b.status === "Pending").length;
 
-  const barChartData = [
-    { label: "Jan", height: "h-[60%]", value: "102M đ", active: false },
-    { label: "Feb", height: "h-[75%]", value: "115M đ", active: false },
-    { label: "Mar", height: "h-[70%]", value: "110M đ", active: false },
-    { label: "Apr", height: "h-[85%]", value: "121M đ", active: false },
-    { label: "May", height: "h-[95%]", value: "124M đ", active: true },
-    { label: "Jun", height: "h-[40%]", value: "128M đ (Proj)", active: false, projection: true },
-  ];
+  // Dynamic chart data calculation from bills
+  const generateChartData = () => {
+    // Basic dynamic aggregation based on the bills array. 
+    // In a real scenario, this would aggregate by actual month sorting.
+    const monthMap: Record<string, number> = {};
+    bills.forEach(b => {
+      const shortMonth = b.month.split(" ")[0].substring(0, 3);
+      monthMap[shortMonth] = (monthMap[shortMonth] || 0) + b.total;
+    });
+
+    const defaultLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
+    const maxVal = Math.max(...Object.values(monthMap), 150000000); // minimum scale
+
+    return defaultLabels.map((label, idx) => {
+      const val = monthMap[label] || (Math.random() * 50000000 + 80000000); // Fallback mock for demo if empty
+      const percentage = Math.min(Math.round((val / maxVal) * 100), 100);
+      const isCurrentMonth = idx === 4; // May as active for demo
+      const isProjection = idx === 5;
+
+      return {
+        label,
+        height: `h-[${percentage}%]`,
+        value: `${(val / 1000000).toFixed(0)}M đ`,
+        active: isCurrentMonth,
+        projection: isProjection
+      };
+    });
+  };
+
+  const barChartData = generateChartData();
+
+  // Calculate Upcoming Expirations dynamically (mock logic: contracts > 11 months old)
+  const upcomingExpirationsCount = tenants.filter(t => {
+    const contractDate = new Date(t.contractStart);
+    const elevenMonthsAgo = new Date();
+    elevenMonthsAgo.setMonth(elevenMonthsAgo.getMonth() - 11);
+    return contractDate < elevenMonthsAgo;
+  }).length;
+
+  // Find a featured room dynamically
+  const featuredRoom = rooms.find(r => r.status === "Available") || rooms[0];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -247,7 +280,7 @@ export default function DashboardView({
               <Calendar className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold font-display text-black leading-tight">2</p>
+              <p className="text-2xl font-bold font-display text-black leading-tight">{upcomingExpirationsCount}</p>
               <p className="text-xs text-[#45464d] font-bold uppercase tracking-wider font-display">Upcoming Expirations</p>
             </div>
             <ChevronRight className="ml-auto w-4 h-4 text-[#76777d]" />
@@ -348,12 +381,12 @@ export default function DashboardView({
 
           <div className="p-5 flex-1 flex flex-col justify-between">
             <div>
-              <h4 className="font-bold text-black text-sm font-display mb-0.5">Room 301 - Deluxe Studio</h4>
-              <p className="text-[11px] text-[#45464d] mb-4">Upper Floor · 24sqm · Fully Furnished · Safe Lock</p>
+              <h4 className="font-bold text-black text-sm font-display mb-0.5">Room {featuredRoom?.number || 'N/A'} - {featuredRoom?.name || 'Standard'}</h4>
+              <p className="text-[11px] text-[#45464d] mb-4">{featuredRoom?.floor} Floor · {featuredRoom?.wing} · Max {featuredRoom?.maxOccupants} Occupants</p>
               
               <div className="flex items-center justify-between py-3 border-y border-[#c6c6cd]/50">
                 <div className="text-center">
-                  <p className="text-xs font-bold text-black">{formatVND(8500000)}</p>
+                  <p className="text-xs font-bold text-black">{featuredRoom ? formatVND(featuredRoom.monthlyRent) : 'N/A'}</p>
                   <p className="text-[9px] text-[#45464d] mt-0.5">Monthly Rent</p>
                 </div>
                 <div className="w-px h-6 bg-[#c6c6cd]/50"></div>
@@ -363,8 +396,10 @@ export default function DashboardView({
                 </div>
                 <div className="w-px h-6 bg-[#c6c6cd]/50"></div>
                 <div className="text-center">
-                  <p className="text-xs font-bold text-emerald-600">Active</p>
-                  <p className="text-[9px] text-[#45464d] mt-0.5">Contract Status</p>
+                  <p className={`text-xs font-bold ${featuredRoom?.status === 'Available' ? 'text-emerald-600' : 'text-orange-600'}`}>
+                    {featuredRoom?.status || 'Unknown'}
+                  </p>
+                  <p className="text-[9px] text-[#45464d] mt-0.5">Status</p>
                 </div>
               </div>
             </div>
@@ -479,11 +514,16 @@ export default function DashboardView({
                 </div>
                 <div className="border border-[#c6c6cd]/50 rounded-lg p-2.5">
                   <p className="text-[10px] text-[#45464d] uppercase font-bold">Assigned Tenant</p>
-                  <p className="font-bold text-sm mt-0.5 text-[#0051d5]">Sarah Miller</p>
+                  <p className="font-bold text-sm mt-0.5 text-[#0051d5]">
+                    {featuredRoom?.status === 'Occupied' 
+                      ? (tenants.find(t => t.roomAssignment.includes(featuredRoom.number))?.name || 'Unknown')
+                      : 'None'}
+                  </p>
                 </div>
               </div>
               <p className="text-[#45464d] leading-relaxed">
-                Beautifully designed Scandinavian studio apartment with bespoke wood panels and morning sun illumination.
+                {featuredRoom?.name} located in {featuredRoom?.wing}. 
+                Current status is {featuredRoom?.status}.
               </p>
               <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex gap-2 text-blue-800 text-[11px] leading-relaxed">
                 <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />

@@ -35,8 +35,8 @@ interface BillsViewProps {
 }
 
 export default function BillsView({ 
-  bills, 
-  rooms,
+  bills = [], 
+  rooms = [],
   utilitySettings,
   searchQuery: headerSearchQuery,
   onGenerateBills,
@@ -53,11 +53,14 @@ export default function BillsView({
 
   const activeSearch = headerSearchQuery || localSearch;
 
+  // Unique months for filter
+  const uniqueMonths = Array.from(new Set(bills.map(b => b.month)));
+
   // Filter bills
   const filteredBills = bills.filter((bill) => {
     const matchesSearch = 
-      bill.room.toLowerCase().includes(activeSearch.toLowerCase()) ||
-      bill.month.toLowerCase().includes(activeSearch.toLowerCase());
+      (bill.room?.toLowerCase() || '').includes(activeSearch.toLowerCase()) ||
+      (bill.month?.toLowerCase() || '').includes(activeSearch.toLowerCase());
 
     const matchesStatus = 
       statusFilter === "All Status" || 
@@ -186,9 +189,9 @@ export default function BillsView({
             className="bg-[#f2f4f6] border border-transparent hover:border-[#c6c6cd] rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-black transition-all"
           >
             <option>All Months</option>
-            <option>August 2026</option>
-            <option>August 2023</option>
-            <option>July 2023</option>
+            {uniqueMonths.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
           </select>
         </div>
 

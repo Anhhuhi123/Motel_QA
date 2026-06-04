@@ -32,9 +32,9 @@ interface TemplatesViewProps {
 }
 
 export default function TemplatesView({ 
-  templates, 
+  templates = [], 
   utilitySettings, 
-  activityLogs,
+  activityLogs = [],
   onUpdateUtilitySettings,
   onNavigate 
 }: TemplatesViewProps) {
