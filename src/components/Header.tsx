@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Search, Bell, HelpCircle, Grid } from "lucide-react";
+import { Search, Bell, HelpCircle, Grid, LogOut } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
 
 interface HeaderProps {
   currentView: string;
@@ -74,6 +75,14 @@ export default function Header({ currentView, searchQuery, onSearchChange }: Hea
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCziGlb2VSKB_NNK-3v8SJym-jR41KwFkkggAseoUn1Z8440OR9t6awM-aT8Qv8VSgya3adoa_4_yCXvMUFUizDB_hwD3jqR0lNXiBlXMA4vstqNBf3XUCeE8ghMunVOtHHUQZskcOYi8SQeyCYNknb2MM3I5rXMIhz5M_yiA7Qxgb8mwu1idQYYHlNEDQtOIQHda05wSod3MaKHavIi2xje2WBtgj-bECBZg8vLDjYEHLq5L8e4CQ2hr4ZLKjyoVlpOXAubcvgcT0"
             className="h-9 w-9 rounded-full object-cover border border-[#c6c6cd] shadow-sm hover:scale-105 transition-transform"
           />
+          <div className="h-8 w-px bg-[#c6c6cd] mx-1"></div>
+          <button 
+            onClick={() => supabase.auth.signOut()}
+            className="flex items-center gap-1.5 bg-white border border-[#c6c6cd] hover:bg-slate-50 text-black text-[11px] font-bold py-1.5 px-2.5 rounded-lg transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
         </div>
       </div>
     </header>

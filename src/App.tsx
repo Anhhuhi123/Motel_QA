@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Session } from "@supabase/supabase-js";
+import { supabase } from "./lib/supabaseClient";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import DashboardView from "./components/DashboardView";
@@ -12,12 +14,30 @@ import TenantsView from "./components/TenantsView";
 import BillsView from "./components/BillsView";
 import TemplatesView from "./components/TemplatesView";
 import RegisterTenantView from "./components/RegisterTenantView";
+import LoginView from "./components/LoginView";
 
 import { Room, Tenant, Bill, ActivityLog, UtilitySettings, DocumentTemplate, RoomStatus } from "./types";
 
 export default function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [currentView, setCurrentView] = useState("dashboard");
   const [globalSearch, setGlobalSearch] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setIsInitializing(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // 1. Unified Room State list
   const [rooms, setRooms] = useState<Room[]>([
@@ -381,6 +401,21 @@ export default function App() {
         );
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-[#f7f9fb] flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-12 w-12 bg-black rounded-xl mb-4"></div>
+          <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginView />;
+  }
 
   return (
     <div id="propria-layout-root" className="min-h-screen bg-[#f7f9fb] flex select-none text-black">
