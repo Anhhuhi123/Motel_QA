@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { 
   UserPlus, 
   Search, 
@@ -286,8 +287,8 @@ export default function TenantsView({
       </div>
 
       {/* Contract Agreement Viewer Dialog overlay */}
-      {selectedContractTenant && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+      {selectedContractTenant && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-scale-up">
             <button 
               onClick={() => setSelectedContractTenant(null)}
@@ -383,7 +384,8 @@ export default function TenantsView({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
