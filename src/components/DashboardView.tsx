@@ -66,6 +66,17 @@ export default function DashboardView({
   const estimatedMonthlyRevenue = Math.round(paidSum + outstandingSum);
   const unpaidBillsCount = bills.filter(b => b.status === "Unpaid" || b.status === "Pending").length;
 
+  const isTodayLog = (timeLabel: string) => /just now|ago|today/i.test(timeLabel);
+
+  const roomsAddedToday = activityLogs.filter(log => 
+    (log.action.includes("registered") || log.action.includes("added")) && 
+    isTodayLog(log.timeLabel)
+  ).length;
+
+  const revenueToday = activityLogs
+    .filter(log => log.type === "payment" && isTodayLog(log.timeLabel))
+    .reduce((sum, log) => sum + (log.amount || 0), 0);
+
   // Dynamic chart data calculation from bills
   const generateChartData = () => {
     // Basic dynamic aggregation based on the bills array. 
@@ -87,7 +98,7 @@ export default function DashboardView({
 
       return {
         label,
-        height: `h-[${percentage}%]`,
+        height: `${percentage}%`,
         value: `${(val / 1000000).toFixed(0)}M đ`,
         active: isCurrentMonth,
         projection: isProjection
@@ -133,7 +144,7 @@ export default function DashboardView({
           </div>
           <div className="mt-4 flex items-center gap-1 text-emerald-600">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-bold">+2 added this month</span>
+            <span className="text-[11px] font-bold">+{roomsAddedToday} added today</span>
           </div>
         </div>
 
@@ -190,7 +201,7 @@ export default function DashboardView({
           </div>
           <div className="mt-4 flex items-center gap-1 text-emerald-600">
             <TrendingUp className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-bold">8.4% vs last month</span>
+            <span className="text-[11px] font-bold">+{formatVND(revenueToday)} collected today</span>
           </div>
         </div>
       </div>
@@ -240,10 +251,11 @@ export default function DashboardView({
                       : bar.projection 
                         ? "border-2 border-dashed border-[#c6c6cd] hover:border-black" 
                         : "bg-[#e0e3e5] hover:bg-[#0051d5]"
-                  } ${bar.height}`}
-                  style={bar.projection ? { 
-                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 10px)' 
-                  } : undefined}
+                  }`}
+                  style={{
+                    height: bar.height,
+                    ...(bar.projection ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 10px)' } : {})
+                  }}
                 ></div>
 
                 <span className={`text-xs ${bar.active ? "text-[#0051d5] font-bold text-sm" : "text-[#45464d] font-semibold"}`}>

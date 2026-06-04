@@ -60,7 +60,7 @@ export const api = {
     const { data, error } = await supabase.from('activity_logs').select('*');
     if (error) {
       console.error('Error fetching activity logs:', error);
-      return initialActivityLogs;
+      return [];
     }
     return this.toCamelCase(data || []) as ActivityLog[];
   },

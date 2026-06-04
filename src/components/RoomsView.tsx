@@ -4,6 +4,7 @@
  */
 
 import { useState, FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { 
   Plus, 
   Search, 
@@ -398,12 +399,12 @@ export default function RoomsView({
       </div>
 
       {/* Add Room Modal overlay */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-100">
+      {isAddModalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up">
             <button 
               onClick={() => setIsAddModalOpen(false)}
-              className="absolute top-4 right-4 text-[#45464d] hover:text-black"
+              className="absolute top-4 right-4 text-[#45464d] hover:text-black cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -427,7 +428,7 @@ export default function RoomsView({
                   <select 
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
                     <option>Standard Studio</option>
                     <option>Deluxe Suite</option>
@@ -474,7 +475,7 @@ export default function RoomsView({
                   <select 
                     value={roomStatus}
                     onChange={(e) => setRoomStatus(e.target.value as RoomStatus)}
-                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
                     <option value="Available">Available</option>
                     <option value="Occupied">Occupied</option>
@@ -498,20 +499,21 @@ export default function RoomsView({
                 <button 
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d]"
+                  className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold"
+                  className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
                   Create Room
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

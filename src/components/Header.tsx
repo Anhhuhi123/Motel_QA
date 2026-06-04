@@ -78,7 +78,7 @@ export default function Header({ currentView, searchQuery, onSearchChange }: Hea
           <div className="h-8 w-px bg-[#c6c6cd] mx-1"></div>
           <button 
             onClick={() => supabase.auth.signOut()}
-            className="flex items-center gap-1.5 bg-white border border-[#c6c6cd] hover:bg-slate-50 text-black text-[11px] font-bold py-1.5 px-2.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 bg-white border border-[#c6c6cd] hover:bg-slate-50 text-black text-[11px] font-bold py-1.5 px-2.5 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Sign Out</span>
