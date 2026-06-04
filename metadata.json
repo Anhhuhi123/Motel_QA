@@ -1,0 +1,6 @@
+{
+  "name": "Propria",
+  "description": "Comprehensive Property Management application with automated utility bill calculation, interactive tenant binders, and bilingual leasing contract templates.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
