@@ -87,11 +87,13 @@ export const api = {
   // instead of silently displaying stale/fake mock prices.
   async fetchUtilitySettings(): Promise<UtilitySettings | null> {
     if (USE_MOCK_DATA) return initialUtilitySettings;
-    const { data, error } = await supabase.from('utility_settings').select('*').single();
+    // maybeSingle (not single) so an empty table returns null instead of throwing —
+    // the row is only guaranteed to exist after the init migration's seed INSERT runs.
+    const { data, error } = await supabase.from('utility_settings').select('*').maybeSingle();
     if (error) {
       throw new ApiFetchError('Không thể tải cấu hình giá tiện ích từ cơ sở dữ liệu.', error);
     }
-    return this.toCamelCase(data) as UtilitySettings;
+    return data ? (this.toCamelCase(data) as UtilitySettings) : null;
   },
 
   // --- MUTATION METHODS ---

@@ -29,31 +29,19 @@ buộc phải đổi tiền tố. **Không** đưa `SUPABASE_SERVICE_ROLE_KEY` v
 
 ## Bước 3: Khởi tạo Database
 
-Thư mục `supabase/migrations/` chứa file `supabase-schema.sql` — đây là schema **đang thật sự
-được dùng** bởi app (bảng `rooms`, `tenants`, `bills`, `activity_logs`, `utility_settings`,
-`document_templates`, id dạng text). Chạy file này trong **SQL Editor** của Supabase nếu bạn tạo
-project mới từ đầu.
+Thư mục `supabase/migrations/` chỉ chứa **một file duy nhất**:
+`20260702000000_init_schema.sql`. Đây là nguồn schema duy nhất, mô tả đúng 5 bảng mà app thực sự
+dùng (`rooms`, `tenants`, `bills`, `activity_logs`, `utility_settings`, id dạng text). Chạy file
+này trong **SQL Editor** của Supabase — dù bạn tạo project mới từ đầu hay đang dọn lại một project
+cũ từng chạy các migration khác, file này tự dọn các bảng/trigger rác còn sót lại trước khi tạo
+đúng 5 bảng cần thiết.
 
-Các file migration đánh số `20260604...` là bản schema chuẩn hóa (UUID) từng dự tính cho hướng
-Next.js đã bỏ. Nếu project Supabase của bạn đã có sẵn các bảng đó (`contracts`, `occupants`,
-`settings`, `activities`) thì không cần xóa — chúng để trống và có thể tái sử dụng dần cho các
-tính năng như hợp đồng thật (xem mục 3.2 trong `MIGRATION_PLAN.md`), miễn là sửa kiểu cột khóa
-ngoại về TEXT cho khớp id của `rooms`/`tenants`.
-
-## Bước 4: Tạo Storage Bucket (cho Document Templates)
-
-1. Vào **Storage → New bucket**, đặt tên `templates`, bật **Public bucket**.
-2. Vào tab **Policies** của bucket, cấp quyền Insert/Update/Select cho `authenticated` users.
-
-## Bước 5: Tạo tài khoản Admin
+## Bước 4: Tạo tài khoản Admin
 
 1. Vào **Authentication → Users → Add user → Create new user**.
 2. Nhập Email/Password, đảm bảo trạng thái **Confirmed**.
-3. Nếu trigger tạo `profiles` (trong `supabase-schema.sql`/migration profiles) đã chạy, một dòng
-   trong bảng `profiles` sẽ tự sinh tương ứng — đây là nguồn dữ liệu thật cho tên/role hiển thị ở
-   Header thay vì dữ liệu cứng.
 
-## Bước 6: Chạy dự án
+## Bước 5: Chạy dự án
 
 ```bash
 pnpm install   # hoặc npm install

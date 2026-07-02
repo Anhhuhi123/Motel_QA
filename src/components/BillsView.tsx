@@ -24,7 +24,6 @@ interface BillsViewProps {
   rooms: Room[];
   utilitySettings: UtilitySettings;
   searchQuery: string;
-  onGenerateBills: () => void;
   onMarkBillPaid: (billId: string) => void;
   onSendNotice: (billId: string) => void;
 }
@@ -34,7 +33,6 @@ export default function BillsView({
   rooms = [],
   utilitySettings,
   searchQuery: headerSearchQuery,
-  onGenerateBills,
   onMarkBillPaid,
   onSendNotice
 }: BillsViewProps) {
@@ -43,8 +41,6 @@ export default function BillsView({
   const [monthFilter, setMonthFilter] = useState("Tất cả các tháng");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationSuccess, setGenerationSuccess] = useState(false);
 
   const activeSearch = headerSearchQuery || localSearch;
 
@@ -85,16 +81,6 @@ export default function BillsView({
   const utilitiesTotal = bills
     .reduce((sum, b) => sum + b.electricity + b.water, 0);
 
-  const handleGenerateClick = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      onGenerateBills();
-      setIsGenerating(false);
-      setGenerationSuccess(true);
-      setTimeout(() => setGenerationSuccess(false), 3000);
-    }, 1200);
-  };
-
   const handleClearFilters = () => {
     setLocalSearch("");
     setStatusFilter("Tất cả trạng thái");
@@ -104,31 +90,11 @@ export default function BillsView({
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Title Header with interactive simulator generate trigger */}
+      {/* Title Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-black tracking-tight font-display">Hóa Đơn</h2>
-          <p className="text-sm text-[#45464d] mt-1">Tạo và theo dõi hóa đơn tiền phòng và dịch vụ tiện ích</p>
-        </div>
-        <div className="flex gap-2">
-          {generationSuccess && (
-            <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-1.5 animate-scale-up">
-              <Sparkles className="w-4 h-4 text-emerald-500" />
-              <span>Tạo hóa đơn thành công!</span>
-            </div>
-          )}
-          <button
-            onClick={handleGenerateClick}
-            disabled={isGenerating}
-            className={`px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold transition-all shadow-sm ${
-              isGenerating
-                ? "bg-slate-400 text-white cursor-wait"
-                : "bg-black text-white hover:bg-slate-800 active:scale-95 cursor-pointer"
-            }`}
-          >
-            <Sparkles className={`w-4 h-4 text-emerald-400 ${isGenerating ? "animate-spin" : ""}`} />
-            <span>{isGenerating ? "Đang tính toán..." : "Tạo Hóa Đơn Tháng"}</span>
-          </button>
+          <p className="text-sm text-[#45464d] mt-1">Theo dõi hóa đơn tiền phòng và dịch vụ tiện ích</p>
         </div>
       </div>
 
@@ -393,19 +359,28 @@ export default function BillsView({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600 font-semibold">Tiền Điện:</span>
-                  <span className="text-[#76777d] italic">theo số dùng · {formatVND(utilitySettings.electricityPrice)}/kWh</span>
+                  <span className="text-[#76777d] italic">
+                    {selectedBill.electricityUnits !== undefined
+                      ? `${selectedBill.electricityUnits} kWh · ${formatVND(utilitySettings.electricityPrice)}/kWh`
+                      : `theo số dùng · ${formatVND(utilitySettings.electricityPrice)}/kWh`}
+                  </span>
                   <span className="font-bold font-mono">{formatVND(selectedBill.electricity)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600 font-semibold">Tiền Nước:</span>
-                  <span className="text-[#76777d] italic">theo khối lượng · {formatVND(utilitySettings.waterPrice)}/m³</span>
+                  <span className="text-[#76777d] italic">phí cố định/tháng</span>
                   <span className="font-bold font-mono">{formatVND(selectedBill.water)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600 font-semibold">Phí Dịch Vụ:</span>
-                  <span className="text-[#76777d] italic">Internet + Rác + Gửi xe</span>
+                  <span className="text-[#76777d] italic">Internet + Rác + Gửi xe + Khác</span>
                   <span className="font-bold font-mono">
-                    {formatVND(utilitySettings.internetFee + utilitySettings.garbageFee + utilitySettings.parkingFee)}
+                    {formatVND(
+                      (selectedBill.internetFee ?? utilitySettings.internetFee) +
+                      (selectedBill.garbageFee ?? utilitySettings.garbageFee) +
+                      (selectedBill.parkingFee ?? utilitySettings.parkingFee) +
+                      (selectedBill.otherFee ?? utilitySettings.otherFee)
+                    )}
                   </span>
                 </div>
               </div>

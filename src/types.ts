@@ -15,6 +15,7 @@ export interface Room {
   maxOccupants: number;
   currentOccupants: number;
   monthlyRent: number; // in USD
+  lastElectricityReading: number; // most recent electricity meter reading billed for this room
 }
 
 export type DepositStatus = "Paid" | "Partial" | "Overdue";
@@ -45,11 +46,19 @@ export interface Bill {
   rent: number;
   total: number;
   status: BillStatus;
+  // Snapshot detail captured at creation time, used for audit/display in the bill detail modal.
+  electricityUnits?: number;
+  previousElectricityReading?: number;
+  currentElectricityReading?: number;
+  internetFee?: number;
+  garbageFee?: number;
+  parkingFee?: number;
+  otherFee?: number;
 }
 
 export interface UtilitySettings {
   electricityPrice: number;
-  waterPrice: number;
+  waterPrice: number; // fixed monthly water fee (not priced per m3)
   internetFee: number;
   garbageFee: number;
   parkingFee: number;

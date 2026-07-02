@@ -14,6 +14,7 @@ import TenantsView from "./components/TenantsView";
 import BillsView from "./components/BillsView";
 import RegisterTenantView from "./components/RegisterTenantView";
 import LoginView from "./components/LoginView";
+import AccountSettingsView from "./components/AccountSettingsView";
 
 import { Room, Tenant, Bill, ActivityLog, UtilitySettings, RoomStatus } from "./types";
 import { api, ApiFetchError } from "./services/api";
@@ -82,21 +83,27 @@ export default function App() {
           roomsData,
           tenantsData,
           billsData,
-          activityLogsData,
-          utilitySettingsData
+          activityLogsData
         ] = await Promise.all([
           api.fetchRooms(),
           api.fetchTenants(),
           api.fetchBills(),
-          api.fetchActivityLogs(),
-          api.fetchUtilitySettings()
+          api.fetchActivityLogs()
         ]);
 
         setRooms(roomsData);
         setTenants(tenantsData);
         setBills(billsData);
         setActivityLogs(activityLogsData);
-        if (utilitySettingsData) setUtilitySettings(utilitySettingsData);
+
+        // Fetched separately: a missing/misconfigured pricing row shouldn't block
+        // the rest of the app from loading, it just falls back to the default state.
+        try {
+          const utilitySettingsData = await api.fetchUtilitySettings();
+          if (utilitySettingsData) setUtilitySettings(utilitySettingsData);
+        } catch (settingsError) {
+          console.error("Failed to fetch utility settings:", settingsError);
+        }
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
         const message = error instanceof ApiFetchError
@@ -233,59 +240,109 @@ export default function App() {
     setActivityLogs(prev => [logItem, ...prev]);
   };
 
-  // D. Billing generator for the current calendar month
-  const handleGenerateBills = async () => {
-    const currentMonthLabel = formatMonthLabel(new Date());
-    const newBills: Bill[] = [];
-
-    rooms.forEach(room => {
-      if (room.status === "Occupied") {
-        const alreadyBilled = bills.some(b => b.room === `Room ${room.number}` && b.month === currentMonthLabel);
-        if (!alreadyBilled) {
-          const simulatedElecUnits = Math.round(100 + Math.random() * 150); // e.g. 150 kWh
-          const simulatedWaterCapacity = Math.round(5 + Math.random() * 10); // e.g. 10 m3
-
-          const elecSubtotal = Math.round(simulatedElecUnits * utilitySettings.electricityPrice);
-          const waterSubtotal = Math.round(simulatedWaterCapacity * utilitySettings.waterPrice);
-
-          const totalFee = room.monthlyRent + elecSubtotal + waterSubtotal + utilitySettings.internetFee + utilitySettings.garbageFee;
-
-          newBills.push({
-            id: generateId(),
-            room: `Room ${room.number}`,
-            month: currentMonthLabel,
-            electricity: elecSubtotal,
-            water: waterSubtotal,
-            rent: room.monthlyRent,
-            total: Math.round(totalFee),
-            status: "Pending"
-          });
-        }
-      }
-    });
-
-    if (newBills.length > 0) {
-      const results = await Promise.all(newBills.map(bill => api.createBill(bill)));
-      const createdBills = newBills.filter((_, idx) => results[idx]);
-
-      if (createdBills.length < newBills.length) {
-        alert(`Chỉ tạo được ${createdBills.length}/${newBills.length} hóa đơn — một số hóa đơn ghi vào cơ sở dữ liệu thất bại.`);
-      }
-      if (createdBills.length === 0) return;
-
-      setBills(prev => [...createdBills, ...prev]);
-
-      const logItem: ActivityLog = {
-        id: generateId(),
-        user: "Hệ thống tính toán",
-        action: "đã tự động tính hóa đơn cho",
-        detail: `${createdBills.length} phòng đang có người thuê`,
-        timeLabel: "Vừa xong",
-        type: "payment"
-      };
-      await api.createActivityLog(logItem);
-      setActivityLogs(prev => [logItem, ...prev]);
+  // D. Save default utility pricing from the Account page
+  const handleUpdateUtilitySettings = async (updates: UtilitySettings) => {
+    const success = await api.updateUtilitySettings(updates);
+    if (!success) {
+      alert("Không thể lưu cấu hình giá tiện ích vào cơ sở dữ liệu.");
+      return;
     }
+
+    setUtilitySettings(updates);
+
+    const logItem: ActivityLog = {
+      id: generateId(),
+      user: "Quản trị viên hệ thống",
+      action: "đã cập nhật cấu hình giá tiện ích",
+      detail: "Tài Khoản",
+      timeLabel: "Vừa xong",
+      type: "maintenance"
+    };
+    await api.createActivityLog(logItem);
+    setActivityLogs(prev => [logItem, ...prev]);
+  };
+
+  // D2. Create a quick bill for a single room from a real electricity meter reading
+  const handleCreateQuickBill = async (
+    roomId: string,
+    currentReading: number,
+    overrides: {
+      electricityPrice: number;
+      waterPrice: number;
+      internetFee: number;
+      garbageFee: number;
+      parkingFee: number;
+      otherFee: number;
+    }
+  ) => {
+    const targetRoom = rooms.find(r => r.id === roomId);
+    if (!targetRoom) return;
+
+    if (currentReading < targetRoom.lastElectricityReading) {
+      alert("Chỉ số điện hiện tại không được nhỏ hơn chỉ số kỳ trước.");
+      return;
+    }
+
+    const monthLabel = formatMonthLabel(new Date());
+    const alreadyBilled = bills.some(b => b.room === `Room ${targetRoom.number}` && b.month === monthLabel);
+    if (alreadyBilled) {
+      const confirmDup = window.confirm(`Phòng ${targetRoom.number} đã có hóa đơn tháng này. Vẫn tạo thêm hóa đơn mới?`);
+      if (!confirmDup) return;
+    }
+
+    const units = currentReading - targetRoom.lastElectricityReading;
+    const electricitySubtotal = Math.round(units * overrides.electricityPrice);
+    const waterSubtotal = Math.round(overrides.waterPrice);
+    const serviceFees = Math.round(overrides.internetFee + overrides.garbageFee + overrides.parkingFee + overrides.otherFee);
+    const total = targetRoom.monthlyRent + electricitySubtotal + waterSubtotal + serviceFees;
+
+    const newBill: Bill = {
+      id: generateId(),
+      room: `Room ${targetRoom.number}`,
+      month: monthLabel,
+      electricity: electricitySubtotal,
+      water: waterSubtotal,
+      rent: targetRoom.monthlyRent,
+      total,
+      status: "Pending",
+      electricityUnits: units,
+      previousElectricityReading: targetRoom.lastElectricityReading,
+      currentElectricityReading: currentReading,
+      internetFee: overrides.internetFee,
+      garbageFee: overrides.garbageFee,
+      parkingFee: overrides.parkingFee,
+      otherFee: overrides.otherFee
+    };
+
+    const billSuccess = await api.createBill(newBill);
+    if (!billSuccess) {
+      alert("Không thể tạo hóa đơn trong cơ sở dữ liệu.");
+      return;
+    }
+
+    const roomSuccess = await api.updateRoom(targetRoom.id, { lastElectricityReading: currentReading });
+    if (!roomSuccess) {
+      alert("Đã tạo hóa đơn nhưng không thể cập nhật chỉ số điện mới của phòng.");
+    }
+
+    setBills(prev => [newBill, ...prev]);
+    setRooms(prev => prev.map(room => (
+      room.id === targetRoom.id ? { ...room, lastElectricityReading: currentReading } : room
+    )));
+
+    const logItem: ActivityLog = {
+      id: generateId(),
+      user: `Phòng ${targetRoom.number}`,
+      action: "đã được lập hóa đơn nhanh cho",
+      detail: monthLabel,
+      timeLabel: "Vừa xong",
+      type: "payment",
+      amount: total
+    };
+    await api.createActivityLog(logItem);
+    setActivityLogs(prev => [logItem, ...prev]);
+
+    setCurrentView("bills");
   };
 
   // E. Change bill status of a target room
@@ -516,12 +573,14 @@ export default function App() {
             bills={bills}
             tenants={tenants}
             searchQuery={globalSearch}
+            utilitySettings={utilitySettings}
             onAddRoom={handleAddRoom}
             onEditRoomStatus={handleEditRoomStatus}
             onUpdateRoom={handleUpdateRoom}
             onAssignTenant={handleAssignTenant}
             onRemoveTenantFromRoom={handleRemoveTenantFromRoom}
             onDeleteRoom={handleDeleteRoom}
+            onCreateQuickBill={handleCreateQuickBill}
             onNavigate={setCurrentView}
           />
         );
@@ -591,9 +650,15 @@ export default function App() {
             rooms={rooms}
             utilitySettings={utilitySettings}
             searchQuery={globalSearch}
-            onGenerateBills={handleGenerateBills}
             onMarkBillPaid={handleMarkBillPaid}
             onSendNotice={handleSendNotice}
+          />
+        );
+      case "account":
+        return (
+          <AccountSettingsView
+            utilitySettings={utilitySettings}
+            onUpdateUtilitySettings={handleUpdateUtilitySettings}
           />
         );
       case "register":

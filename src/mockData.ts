@@ -1,14 +1,14 @@
 import { Room, Tenant, Bill, ActivityLog, UtilitySettings } from "./types";
 
 export const initialRooms: Room[] = [
-  { id: "room-101", number: "101", name: "Phòng Tiêu Chuẩn", floor: 1, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 2, monthlyRent: 4500000 },
-  { id: "room-102", number: "102", name: "Phòng Tiêu Chuẩn", floor: 1, wing: "Khu Bắc", status: "Available", maxOccupants: 2, currentOccupants: 0, monthlyRent: 4500000 },
-  { id: "room-103", number: "103", name: "Phòng Cao Cấp", floor: 1, wing: "Khu Đông", status: "Maintenance", maxOccupants: 1, currentOccupants: 0, monthlyRent: 5000000 },
-  { id: "room-201", number: "201", name: "Căn Hộ Hạng Sang", floor: 2, wing: "Tầng Thượng", status: "Occupied", maxOccupants: 1, currentOccupants: 1, monthlyRent: 12000000 },
-  { id: "room-202", number: "202", name: "Phòng Tiêu Chuẩn", floor: 2, wing: "Khu Đông", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 4500000 },
-  { id: "room-205", number: "205", name: "Phòng Hạng Sang", floor: 2, wing: "Khu Bắc", status: "Maintenance", maxOccupants: 2, currentOccupants: 0, monthlyRent: 7500000 },
-  { id: "room-301", number: "301", name: "Phòng Cao Cấp Studio", floor: 3, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 8500000 },
-  { id: "room-405", number: "405", name: "Căn Hộ Hạng Sang", floor: 4, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 12000000 },
+  { id: "room-101", number: "101", name: "Phòng Tiêu Chuẩn", floor: 1, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 2, monthlyRent: 4500000, lastElectricityReading: 128 },
+  { id: "room-102", number: "102", name: "Phòng Tiêu Chuẩn", floor: 1, wing: "Khu Bắc", status: "Available", maxOccupants: 2, currentOccupants: 0, monthlyRent: 4500000, lastElectricityReading: 0 },
+  { id: "room-103", number: "103", name: "Phòng Cao Cấp", floor: 1, wing: "Khu Đông", status: "Maintenance", maxOccupants: 1, currentOccupants: 0, monthlyRent: 5000000, lastElectricityReading: 0 },
+  { id: "room-201", number: "201", name: "Căn Hộ Hạng Sang", floor: 2, wing: "Tầng Thượng", status: "Occupied", maxOccupants: 1, currentOccupants: 1, monthlyRent: 12000000, lastElectricityReading: 356 },
+  { id: "room-202", number: "202", name: "Phòng Tiêu Chuẩn", floor: 2, wing: "Khu Đông", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 4500000, lastElectricityReading: 214 },
+  { id: "room-205", number: "205", name: "Phòng Hạng Sang", floor: 2, wing: "Khu Bắc", status: "Maintenance", maxOccupants: 2, currentOccupants: 0, monthlyRent: 7500000, lastElectricityReading: 0 },
+  { id: "room-301", number: "301", name: "Phòng Cao Cấp Studio", floor: 3, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 8500000, lastElectricityReading: 189 },
+  { id: "room-405", number: "405", name: "Căn Hộ Hạng Sang", floor: 4, wing: "Khu Bắc", status: "Occupied", maxOccupants: 2, currentOccupants: 1, monthlyRent: 12000000, lastElectricityReading: 431 },
 ];
 
 export const initialTenants: Tenant[] = [
@@ -49,7 +49,7 @@ export const initialTenants: Tenant[] = [
 
 export const initialUtilitySettings: UtilitySettings = {
   electricityPrice: 3500,
-  waterPrice: 15000,
+  waterPrice: 100000,
   internetFee: 250000,
   garbageFee: 50000,
   parkingFee: 120000,

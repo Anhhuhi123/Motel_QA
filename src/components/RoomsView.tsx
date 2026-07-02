@@ -20,20 +20,31 @@ import {
   X,
   Trash2
 } from "lucide-react";
-import { Room, RoomStatus, Bill, Tenant } from "../types";
+import { Room, RoomStatus, Bill, Tenant, UtilitySettings } from "../types";
 import { formatVND, roomStatusLabel, depositStatusLabel } from "../utils";
+
+export interface QuickBillFeeOverrides {
+  electricityPrice: number;
+  waterPrice: number;
+  internetFee: number;
+  garbageFee: number;
+  parkingFee: number;
+  otherFee: number;
+}
 
 interface RoomsViewProps {
   rooms: Room[];
   bills?: Bill[];
   tenants?: Tenant[];
   searchQuery: string;
+  utilitySettings?: UtilitySettings;
   onAddRoom: (room: Omit<Room, "id">) => void;
   onEditRoomStatus: (roomId: string, status: RoomStatus) => void;
   onUpdateRoom?: (roomId: string, updates: Partial<Room>) => void;
   onAssignTenant?: (roomId: string, tenantId: string) => void;
   onRemoveTenantFromRoom?: (roomId: string, tenantId: string) => void;
   onDeleteRoom?: (roomId: string) => void;
+  onCreateQuickBill?: (roomId: string, currentReading: number, overrides: QuickBillFeeOverrides) => void;
   onNavigate?: (view: string) => void;
 }
 
@@ -42,12 +53,14 @@ export default function RoomsView({
   bills = [],
   tenants = [],
   searchQuery: headerSearchQuery,
+  utilitySettings,
   onAddRoom,
   onEditRoomStatus,
   onUpdateRoom,
   onAssignTenant,
   onRemoveTenantFromRoom,
   onDeleteRoom,
+  onCreateQuickBill,
   onNavigate
 }: RoomsViewProps) {
   const [localSearch, setLocalSearch] = useState("");
@@ -62,6 +75,16 @@ export default function RoomsView({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [selectedTenantToAssign, setSelectedTenantToAssign] = useState<string>("");
+  const [payingRoom, setPayingRoom] = useState<Room | null>(null);
+  const [readingInput, setReadingInput] = useState<number>(0);
+  const [feeOverrides, setFeeOverrides] = useState<QuickBillFeeOverrides>({
+    electricityPrice: 0,
+    waterPrice: 0,
+    internetFee: 0,
+    garbageFee: 0,
+    parkingFee: 0,
+    otherFee: 0
+  });
 
   // New room form state
   const [roomNumber, setRoomNumber] = useState("");
@@ -123,7 +146,8 @@ export default function RoomsView({
       status: roomStatus,
       maxOccupants: Number(roomMaxOccupants),
       currentOccupants: roomStatus === "Occupied" ? 1 : 0,
-      monthlyRent: Number(roomRent)
+      monthlyRent: Number(roomRent),
+      lastElectricityReading: 0
     });
 
     // Reset forms
@@ -300,6 +324,24 @@ export default function RoomsView({
                             className="p-1 px-2 text-[10px] items-center gap-1 border border-[#c6c6cd] hover:border-black rounded text-[#45464d] hover:text-black font-semibold cursor-pointer"
                           >
                             Đổi Trạng Thái
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPayingRoom(room);
+                              setReadingInput(room.lastElectricityReading || 0);
+                              setFeeOverrides({
+                                electricityPrice: utilitySettings?.electricityPrice ?? 0,
+                                waterPrice: utilitySettings?.waterPrice ?? 0,
+                                internetFee: utilitySettings?.internetFee ?? 0,
+                                garbageFee: utilitySettings?.garbageFee ?? 0,
+                                parkingFee: utilitySettings?.parkingFee ?? 0,
+                                otherFee: utilitySettings?.otherFee ?? 0
+                              });
+                            }}
+                            title="Thanh Toán Nhanh"
+                            className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => {
@@ -790,6 +832,168 @@ export default function RoomsView({
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Quick Payment Modal overlay */}
+      {payingRoom && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setPayingRoom(null)}
+              className="absolute top-4 right-4 text-[#45464d] hover:text-black cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold text-black mb-4 font-display">Thanh Toán Nhanh — Phòng {payingRoom.number}</h3>
+
+            {(() => {
+              const units = Math.max(0, readingInput - payingRoom.lastElectricityReading);
+              const electricityAmount = Math.round(units * feeOverrides.electricityPrice);
+              const waterAmount = Math.round(feeOverrides.waterPrice);
+              const serviceFees = Math.round(
+                feeOverrides.internetFee + feeOverrides.garbageFee + feeOverrides.parkingFee + feeOverrides.otherFee
+              );
+              const total = payingRoom.monthlyRent + electricityAmount + waterAmount + serviceFees;
+              const isReadingValid = readingInput >= payingRoom.lastElectricityReading;
+
+              return (
+                <div className="space-y-4">
+                  <div className="bg-[#f7f9fb] border border-[#c6c6cd]/50 rounded-lg p-3 flex justify-between items-center">
+                    <span className="text-xs font-bold text-[#45464d]">Tiền Phòng</span>
+                    <span className="text-sm font-bold text-black">{formatVND(payingRoom.monthlyRent)}</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Chỉ Số Điện Kỳ Trước</label>
+                      <input
+                        type="number"
+                        value={payingRoom.lastElectricityReading}
+                        readOnly
+                        className="w-full border border-[#c6c6cd] bg-[#f2f4f6] rounded-lg p-2 text-xs outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Chỉ Số Điện Hiện Tại *</label>
+                      <input
+                        type="number"
+                        value={readingInput}
+                        min={payingRoom.lastElectricityReading}
+                        onChange={(e) => setReadingInput(Number(e.target.value))}
+                        className={`w-full border rounded-lg p-2 text-xs focus:ring-1 outline-none ${
+                          isReadingValid
+                            ? "border-[#c6c6cd] focus:ring-[#0051d5]"
+                            : "border-red-400 focus:ring-red-400"
+                        }`}
+                      />
+                      {!isReadingValid && (
+                        <p className="text-[10px] text-red-600 font-semibold mt-1">Chỉ số hiện tại phải lớn hơn hoặc bằng chỉ số kỳ trước.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#c6c6cd] grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Đơn Giá Điện / kWh</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.electricityPrice}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, electricityPrice: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Phí Nước (Cố Định/Tháng)</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.waterPrice}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, waterPrice: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Phí Wifi/Tháng</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.internetFee}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, internetFee: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Phí Rác/Tháng</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.garbageFee}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, garbageFee: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Phí Gửi Xe/Tháng</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.parkingFee}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, parkingFee: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#45464d] mb-1">Phí Khác/Tháng</label>
+                      <input
+                        type="number"
+                        value={feeOverrides.otherFee}
+                        onChange={(e) => setFeeOverrides({ ...feeOverrides, otherFee: Number(e.target.value) })}
+                        className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-[#c6c6cd] space-y-1.5">
+                    <div className="flex justify-between text-xs text-[#45464d]">
+                      <span>Tiền Điện ({units} kWh)</span>
+                      <span className="font-semibold text-black">{formatVND(electricityAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-[#45464d]">
+                      <span>Tiền Nước</span>
+                      <span className="font-semibold text-black">{formatVND(waterAmount)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-[#45464d]">
+                      <span>Phí Dịch Vụ (Wifi/Rác/Xe/Khác)</span>
+                      <span className="font-semibold text-black">{formatVND(serviceFees)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-[#c6c6cd]">
+                      <span>Tổng Cộng</span>
+                      <span>{formatVND(total)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPayingRoom(null)}
+                      className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
+                    >
+                      Hủy
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!isReadingValid}
+                      onClick={() => {
+                        onCreateQuickBill?.(payingRoom.id, readingInput, feeOverrides);
+                        setPayingRoom(null);
+                      }}
+                      className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Xác Nhận
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>,
         document.body

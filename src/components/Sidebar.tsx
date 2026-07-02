@@ -69,10 +69,14 @@ export default function Sidebar({ currentView, onViewChange }: SidebarProps) {
       <div className="mt-auto pt-4 border-t border-[#c6c6cd] space-y-1">
         <button
           id="btn-sidebar-account"
-          onClick={() => onViewChange("dashboard")} // mock redirect
-          className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-[#45464d] hover:bg-[#f2f4f6] rounded-lg transition-colors text-left"
+          onClick={() => onViewChange("account")}
+          className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-left ${
+            currentView === "account"
+              ? "text-black font-bold bg-[#eceef0] shadow-sm cursor-default"
+              : "text-[#45464d] hover:bg-[#f2f4f6]"
+          }`}
         >
-          <User className="w-4 h-4 text-[#45464d]" />
+          <User className={`w-4 h-4 ${currentView === "account" ? "text-black" : "text-[#45464d]"}`} />
           <span>Tài khoản</span>
         </button>
       </div>
