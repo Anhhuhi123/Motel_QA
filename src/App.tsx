@@ -12,18 +12,22 @@ import DashboardView from "./components/DashboardView";
 import RoomsView from "./components/RoomsView";
 import TenantsView from "./components/TenantsView";
 import BillsView from "./components/BillsView";
-import TemplatesView from "./components/TemplatesView";
 import RegisterTenantView from "./components/RegisterTenantView";
 import LoginView from "./components/LoginView";
 
-import { Room, Tenant, Bill, ActivityLog, UtilitySettings, DocumentTemplate, RoomStatus } from "./types";
-import { api } from "./services/api";
+import { Room, Tenant, Bill, ActivityLog, UtilitySettings, RoomStatus } from "./types";
+import { api, ApiFetchError } from "./services/api";
+import { formatMonthLabel, roomStatusLabel } from "./utils";
+
+const generateId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [currentView, setCurrentView] = useState("dashboard");
   const [globalSearch, setGlobalSearch] = useState("");
+  const [dataError, setDataError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -63,27 +67,23 @@ export default function App() {
   // 5. Activity Log list
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
 
-  // 6. Templates
-  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
-
   // Hydrate Data on Load
   useEffect(() => {
     const fetchData = async () => {
+      setDataError(null);
       try {
         const [
           roomsData,
           tenantsData,
           billsData,
           activityLogsData,
-          utilitySettingsData,
-          templatesData
+          utilitySettingsData
         ] = await Promise.all([
           api.fetchRooms(),
           api.fetchTenants(),
           api.fetchBills(),
           api.fetchActivityLogs(),
-          api.fetchUtilitySettings(),
-          api.fetchTemplates()
+          api.fetchUtilitySettings()
         ]);
 
         setRooms(roomsData);
@@ -91,9 +91,12 @@ export default function App() {
         setBills(billsData);
         setActivityLogs(activityLogsData);
         if (utilitySettingsData) setUtilitySettings(utilitySettingsData);
-        setTemplates(templatesData);
       } catch (error) {
         console.error("Failed to fetch initial data:", error);
+        const message = error instanceof ApiFetchError
+          ? error.message
+          : "Không thể kết nối tới cơ sở dữ liệu. Vui lòng thử tải lại trang.";
+        setDataError(message);
       }
     };
 
@@ -104,7 +107,7 @@ export default function App() {
 
   // A. Register New Tenant & transition Rooms status
   const handleRegisterTenant = async (newTenantData: Omit<Tenant, "id">) => {
-    const newId = `t-${Date.now()}`;
+    const newId = generateId();
     const newTenant: Tenant = {
       id: newId,
       ...newTenantData
@@ -112,7 +115,7 @@ export default function App() {
 
     const success = await api.createTenant(newTenant);
     if (!success) {
-      alert("Failed to create tenant in database");
+      alert("Không thể tạo người thuê trong cơ sở dữ liệu.");
       return;
     }
 
@@ -145,11 +148,11 @@ export default function App() {
 
     // Generate recent activity log item
     const logItem: ActivityLog = {
-      id: `log-${Date.now()}`,
+      id: generateId(),
       user: newTenant.name,
-      action: "enrolled contract agreement in",
+      action: "đã ký hợp đồng thuê tại",
       detail: newTenant.roomAssignment,
-      timeLabel: "Just now",
+      timeLabel: "Vừa xong",
       type: "tenant"
     };
     await api.createActivityLog(logItem);
@@ -159,24 +162,24 @@ export default function App() {
   // B. Create a brand new Room
   const handleAddRoom = async (newRoomData: Omit<Room, "id">) => {
     const newRoom: Room = {
-      id: `room-${Date.now()}`,
+      id: generateId(),
       ...newRoomData
     };
 
     const success = await api.createRoom(newRoom);
     if (!success) {
-      alert("Failed to create room in database");
+      alert("Không thể tạo phòng trong cơ sở dữ liệu.");
       return;
     }
 
     setRooms(prev => [...prev, newRoom]);
 
     const logItem: ActivityLog = {
-      id: `log-${Date.now()}`,
-      user: `Room ${newRoom.number}`,
-      action: "category registered as",
+      id: generateId(),
+      user: `Phòng ${newRoom.number}`,
+      action: "đã được đăng ký với loại",
       detail: newRoom.name,
-      timeLabel: "Just now",
+      timeLabel: "Vừa xong",
       type: "maintenance"
     };
     await api.createActivityLog(logItem);
@@ -196,7 +199,7 @@ export default function App() {
     });
 
     if (!success) {
-      alert("Failed to update room status in database");
+      alert("Không thể cập nhật trạng thái phòng trong cơ sở dữ liệu.");
       return;
     }
 
@@ -212,44 +215,26 @@ export default function App() {
     }));
 
     const logItem: ActivityLog = {
-      id: `log-${Date.now()}`,
-      user: `Room ${targetRoom.number}`,
-      action: "status updated manually to",
-      detail: nextStatus,
-      timeLabel: "Just now",
+      id: generateId(),
+      user: `Phòng ${targetRoom.number}`,
+      action: "đã được cập nhật trạng thái thủ công thành",
+      detail: roomStatusLabel(nextStatus),
+      timeLabel: "Vừa xong",
       type: "maintenance"
     };
     await api.createActivityLog(logItem);
     setActivityLogs(prev => [logItem, ...prev]);
   };
 
-  // D. Create Room/Utility pricing settings parameters
-  const handleUpdateUtilitySettings = (newSettings: UtilitySettings) => {
-    setUtilitySettings(newSettings);
+  // D. Billing generator for the current calendar month
+  const handleGenerateBills = async () => {
+    const currentMonthLabel = formatMonthLabel(new Date());
+    const newBills: Bill[] = [];
 
-    const logItem: ActivityLog = {
-      id: `log-${Date.now()}`,
-      user: "System Admin",
-      action: "updated pricing coefficients for",
-      detail: "electricity limits and water indices",
-      timeLabel: "Just now",
-      type: "alert"
-    };
-    setActivityLogs(prev => [logItem, ...prev]);
-  };
-
-  // E. Dynamic billing simulator generator
-  const handleGenerateBills = () => {
-    const newAugustBills: Bill[] = [];
-
-    // Scan all occupied rooms
     rooms.forEach(room => {
       if (room.status === "Occupied") {
-        // Prevent creating duplicating bills for August 2026 this session
-        const alreadyBilled = bills.some(b => b.room === `Room ${room.number}` && b.month === "August 2026");
+        const alreadyBilled = bills.some(b => b.room === `Room ${room.number}` && b.month === currentMonthLabel);
         if (!alreadyBilled) {
-          // Calculate water and elec parameters based on multipliers inside Settings
-          // Simulate standard unit multipliers
           const simulatedElecUnits = Math.round(100 + Math.random() * 150); // e.g. 150 kWh
           const simulatedWaterCapacity = Math.round(5 + Math.random() * 10); // e.g. 10 m3
 
@@ -258,85 +243,93 @@ export default function App() {
 
           const totalFee = room.monthlyRent + elecSubtotal + waterSubtotal + utilitySettings.internetFee + utilitySettings.garbageFee;
 
-          newAugustBills.push({
-            id: `bill-${Date.now()}-${room.number}`,
+          newBills.push({
+            id: generateId(),
             room: `Room ${room.number}`,
-            month: "August 2026",
+            month: currentMonthLabel,
             electricity: elecSubtotal,
             water: waterSubtotal,
             rent: room.monthlyRent,
             total: Math.round(totalFee),
-            status: "Pending" // Starts as Pending
+            status: "Pending"
           });
         }
       }
     });
 
-    if (newAugustBills.length > 0) {
-      setBills(prev => [...newAugustBills, ...prev]);
+    if (newBills.length > 0) {
+      const results = await Promise.all(newBills.map(bill => api.createBill(bill)));
+      const createdBills = newBills.filter((_, idx) => results[idx]);
+
+      if (createdBills.length < newBills.length) {
+        alert(`Chỉ tạo được ${createdBills.length}/${newBills.length} hóa đơn — một số hóa đơn ghi vào cơ sở dữ liệu thất bại.`);
+      }
+      if (createdBills.length === 0) return;
+
+      setBills(prev => [...createdBills, ...prev]);
 
       const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user: "Compute Engine",
-        action: "automatically calculated invoices for",
-        detail: `${newAugustBills.length} active room occupants`,
-        timeLabel: "Just now",
+        id: generateId(),
+        user: "Hệ thống tính toán",
+        action: "đã tự động tính hóa đơn cho",
+        detail: `${createdBills.length} phòng đang có người thuê`,
+        timeLabel: "Vừa xong",
         type: "payment"
       };
+      await api.createActivityLog(logItem);
       setActivityLogs(prev => [logItem, ...prev]);
     }
   };
 
-  // F. Change bill status of a target room
-  const handleMarkBillPaid = (billId: string) => {
-    setBills(prev => prev.map(bill => {
-      if (bill.id === billId) {
-        return {
-          ...bill,
-          status: "Paid"
-        };
-      }
-      return bill;
-    }));
-
+  // E. Change bill status of a target room
+  const handleMarkBillPaid = async (billId: string) => {
     const bill = bills.find(b => b.id === billId);
-    if (bill) {
-      const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user: `Tenant ${bill.room}`,
-        action: "recorded payment for rent in",
-        detail: bill.month,
-        timeLabel: "Just now",
-        type: "payment",
-        amount: bill.total
-      };
-      setActivityLogs(prev => [logItem, ...prev]);
+    if (!bill) return;
+
+    const success = await api.updateBill(billId, { status: "Paid" });
+    if (!success) {
+      alert("Không thể cập nhật trạng thái hóa đơn vào cơ sở dữ liệu.");
+      return;
     }
+
+    setBills(prev => prev.map(b => (b.id === billId ? { ...b, status: "Paid" } : b)));
+
+    const logItem: ActivityLog = {
+      id: generateId(),
+      user: `Người thuê ${bill.room}`,
+      action: "đã thanh toán tiền thuê cho",
+      detail: bill.month,
+      timeLabel: "Vừa xong",
+      type: "payment",
+      amount: bill.total
+    };
+    await api.createActivityLog(logItem);
+    setActivityLogs(prev => [logItem, ...prev]);
   };
 
-  // G. Trigger notification simulator mail Notice dispatch
+  // F. Trigger notification simulator mail Notice dispatch
   const handleSendNotice = (billId: string) => {
     const bill = bills.find(b => b.id === billId);
     if (bill) {
-      alert(`Dispatching digital invoice notice via standard SMTP registry!\n\nTo: Tenant inside ${bill.room}\nRegarding: Statement for ${bill.month}\nStatement Balance Due: ${bill.total.toLocaleString()} VND`);
+      alert(`Đã gửi thông báo hóa đơn điện tử qua email!\n\nĐến: Người thuê tại ${bill.room}\nVề việc: Hóa đơn ${bill.month}\nSố tiền cần thanh toán: ${bill.total.toLocaleString()} VND`);
 
       const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
-        user: "Mail Server",
-        action: "dispatched warning notification backsheet to",
-        detail: `lessee of ${bill.room}`,
-        timeLabel: "Just now",
+        id: generateId(),
+        user: "Hệ thống gửi mail",
+        action: "đã gửi thông báo nhắc nhở đến",
+        detail: `người thuê tại ${bill.room}`,
+        timeLabel: "Vừa xong",
         type: "alert"
       };
       setActivityLogs(prev => [logItem, ...prev]);
     }
   };
 
-  // H. Update Room Details
+  // G. Update Room Details
   const handleUpdateRoom = async (roomId: string, updates: Partial<Room>) => {
     const success = await api.updateRoom(roomId, updates);
     if (!success) {
-      alert("Failed to update room in database");
+      alert("Không thể cập nhật thông tin phòng trong cơ sở dữ liệu.");
       return;
     }
 
@@ -348,7 +341,7 @@ export default function App() {
     }));
   };
 
-  // I. Assign Existing Tenant to a Room
+  // H. Assign Existing Tenant to a Room
   const handleAssignTenant = async (roomId: string, tenantId: string) => {
     const targetRoom = rooms.find(r => r.id === roomId);
     const targetTenant = tenants.find(t => t.id === tenantId);
@@ -362,7 +355,7 @@ export default function App() {
       ]);
 
       if (!tenantSuccess || !roomSuccess) {
-        alert("Failed to assign tenant in database");
+        alert("Không thể gán người thuê vào phòng trong cơ sở dữ liệu.");
         return;
       }
 
@@ -385,11 +378,11 @@ export default function App() {
       }));
 
       const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
+        id: generateId(),
         user: targetTenant.name,
-        action: "was reassigned to",
-        detail: `Room ${targetRoom.number}`,
-        timeLabel: "Just now",
+        action: "đã được chuyển đến",
+        detail: `Phòng ${targetRoom.number}`,
+        timeLabel: "Vừa xong",
         type: "tenant"
       };
       await api.createActivityLog(logItem);
@@ -397,22 +390,22 @@ export default function App() {
     }
   };
 
-  // J. Remove Tenant from Room
+  // I. Remove Tenant from Room
   const handleRemoveTenantFromRoom = async (roomId: string, tenantId: string) => {
     const targetRoom = rooms.find(r => r.id === roomId);
     const targetTenant = tenants.find(t => t.id === tenantId);
-    
+
     if (targetRoom && targetTenant) {
       const newOccupants = Math.max(targetRoom.currentOccupants - 1, 0);
       const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
-      
+
       const [tenantSuccess, roomSuccess] = await Promise.all([
         api.updateTenant(tenantId, { roomAssignment: "" }),
         api.updateRoom(roomId, { status: newStatus, currentOccupants: newOccupants })
       ]);
 
       if (!tenantSuccess || !roomSuccess) {
-        alert("Failed to remove tenant in database");
+        alert("Không thể gỡ người thuê khỏi phòng trong cơ sở dữ liệu.");
         return;
       }
 
@@ -435,11 +428,11 @@ export default function App() {
       }));
 
       const logItem: ActivityLog = {
-        id: `log-${Date.now()}`,
+        id: generateId(),
         user: targetTenant.name,
-        action: "was removed from",
-        detail: `Room ${targetRoom.number}`,
-        timeLabel: "Just now",
+        action: "đã được gỡ khỏi",
+        detail: `Phòng ${targetRoom.number}`,
+        timeLabel: "Vừa xong",
         type: "tenant"
       };
       await api.createActivityLog(logItem);
@@ -447,9 +440,9 @@ export default function App() {
     }
   };
 
-  // K. Delete a Room
+  // J. Delete a Room
   const handleDeleteRoom = async (roomId: string) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this room? This action cannot be undone.");
+    const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa phòng này? Hành động này không thể hoàn tác.");
     if (!confirmDelete) return;
 
     const targetRoom = rooms.find(r => r.id === roomId);
@@ -457,24 +450,24 @@ export default function App() {
 
     // Optional: check if room is occupied and warn
     if (targetRoom.currentOccupants > 0) {
-      alert("Cannot delete an occupied room. Please remove or reassign tenants first.");
+      alert("Không thể xóa phòng đang có người thuê. Vui lòng gỡ hoặc chuyển người thuê trước.");
       return;
     }
 
     const success = await api.deleteRoom(roomId);
     if (!success) {
-      alert("Failed to delete room from database");
+      alert("Không thể xóa phòng khỏi cơ sở dữ liệu.");
       return;
     }
 
     setRooms(prev => prev.filter(r => r.id !== roomId));
 
     const logItem: ActivityLog = {
-      id: `log-${Date.now()}`,
-      user: "System Admin",
-      action: "deleted room",
-      detail: `Room ${targetRoom.number}`,
-      timeLabel: "Just now",
+      id: generateId(),
+      user: "Quản trị viên hệ thống",
+      action: "đã xóa phòng",
+      detail: `Phòng ${targetRoom.number}`,
+      timeLabel: "Vừa xong",
       type: "alert"
     };
     await api.createActivityLog(logItem);
@@ -517,14 +510,14 @@ export default function App() {
             rooms={rooms}
             searchQuery={globalSearch}
             onRemoveTenant={async (tenantId) => {
-              const confirmDelete = window.confirm("Are you sure you want to remove this tenant?");
+              const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa người thuê này?");
               if (!confirmDelete) return;
 
               const tenantToRemove = tenants.find(t => t.id === tenantId);
 
               const success = await api.deleteTenant(tenantId);
               if (!success) {
-                alert("Failed to delete tenant from database");
+                alert("Không thể xóa người thuê khỏi cơ sở dữ liệu.");
                 return;
               }
 
@@ -555,11 +548,11 @@ export default function App() {
 
               // Log removal
               const logItem: ActivityLog = {
-                id: `log-${Date.now()}`,
-                user: "System Admin",
-                action: "evicted tenant",
+                id: generateId(),
+                user: "Quản trị viên hệ thống",
+                action: "đã xóa người thuê",
                 detail: tenantToRemove?.name || tenantId,
-                timeLabel: "Just now",
+                timeLabel: "Vừa xong",
                 type: "alert"
               };
               await api.createActivityLog(logItem);
@@ -578,17 +571,6 @@ export default function App() {
             onGenerateBills={handleGenerateBills}
             onMarkBillPaid={handleMarkBillPaid}
             onSendNotice={handleSendNotice}
-          />
-        );
-      case "templates":
-      case "settings":
-        return (
-          <TemplatesView
-            templates={templates}
-            utilitySettings={utilitySettings}
-            activityLogs={activityLogs}
-            onUpdateUtilitySettings={handleUpdateUtilitySettings}
-            onNavigate={setCurrentView}
           />
         );
       case "register":
@@ -648,6 +630,17 @@ export default function App() {
 
         {/* Render View Container */}
         <main className="flex-grow pt-24 px-8 pb-12 overflow-y-auto">
+          {dataError && (
+            <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              <span>{dataError}</span>
+              <button
+                onClick={() => setDataError(null)}
+                className="shrink-0 font-medium text-red-700 hover:text-red-900"
+              >
+                Đóng
+              </button>
+            </div>
+          )}
           {renderActiveView()}
         </main>
       </div>

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useState, useEffect } from "react";
 import { Search, Bell, HelpCircle, Grid, LogOut } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 
@@ -12,21 +13,51 @@ interface HeaderProps {
   onSearchChange: (query: string) => void;
 }
 
+interface CurrentUser {
+  fullName: string;
+  role: string;
+  email: string;
+}
+
 export default function Header({ currentView, searchQuery, onSearchChange }: HeaderProps) {
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, role, email")
+        .eq("id", user.id)
+        .single();
+
+      if (cancelled) return;
+      setCurrentUser({
+        fullName: profile?.full_name || user.email || "Quản trị viên",
+        role: profile?.role ? profile.role[0].toUpperCase() + profile.role.slice(1) : "Người dùng",
+        email: profile?.email || user.email || ""
+      });
+    };
+
+    loadProfile();
+    return () => { cancelled = true; };
+  }, []);
+
   // Get search placeholder based on current active view
   const getPlaceholder = () => {
     switch (currentView) {
       case "rooms":
-        return "Search rooms, wings, or statuses...";
+        return "Tìm theo số phòng, khu hoặc trạng thái...";
       case "tenants":
-        return "Search by tenant name, ID, or phone...";
+        return "Tìm theo tên, mã số hoặc số điện thoại...";
       case "bills":
-        return "Search bills by room or month...";
-      case "templates":
-      case "settings":
-        return "Search templates, specifications or parameters...";
+        return "Tìm hóa đơn theo phòng hoặc tháng...";
       default:
-        return "Search rooms, tenants, bills, or tasks...";
+        return "Tìm phòng, người thuê, hóa đơn hoặc công việc...";
     }
   };
 
@@ -63,25 +94,25 @@ export default function Header({ currentView, searchQuery, onSearchChange }: Hea
 
         <div className="h-8 w-px bg-[#c6c6cd]"></div>
 
-        {/* User profile avatar info card */}
+        {/* User profile info card — populated from the signed-in Supabase user + profiles table */}
         <div className="flex items-center gap-3">
           <div className="text-right hidden sm:block">
-            <p className="text-xs font-bold text-black leading-none">Alex Morgan</p>
-            <p className="text-[10px] text-[#45464d] mt-1">Property Admin</p>
+            <p className="text-xs font-bold text-black leading-none">{currentUser?.fullName || "..."}</p>
+            <p className="text-[10px] text-[#45464d] mt-1">{currentUser?.role || ""}</p>
           </div>
-          <img
+          <div
             id="user-header-avatar"
-            alt="Property Manager Avatar"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuCziGlb2VSKB_NNK-3v8SJym-jR41KwFkkggAseoUn1Z8440OR9t6awM-aT8Qv8VSgya3adoa_4_yCXvMUFUizDB_hwD3jqR0lNXiBlXMA4vstqNBf3XUCeE8ghMunVOtHHUQZskcOYi8SQeyCYNknb2MM3I5rXMIhz5M_yiA7Qxgb8mwu1idQYYHlNEDQtOIQHda05wSod3MaKHavIi2xje2WBtgj-bECBZg8vLDjYEHLq5L8e4CQ2hr4ZLKjyoVlpOXAubcvgcT0"
-            className="h-9 w-9 rounded-full object-cover border border-[#c6c6cd] shadow-sm hover:scale-105 transition-transform"
-          />
+            className="h-9 w-9 rounded-full bg-black text-white flex items-center justify-center font-bold text-xs border border-[#c6c6cd] shadow-sm select-none"
+          >
+            {(currentUser?.fullName || "?").trim().charAt(0).toUpperCase()}
+          </div>
           <div className="h-8 w-px bg-[#c6c6cd] mx-1"></div>
-          <button 
+          <button
             onClick={() => supabase.auth.signOut()}
             className="flex items-center gap-1.5 bg-white border border-[#c6c6cd] hover:bg-slate-50 text-black text-[11px] font-bold py-1.5 px-2.5 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sign Out</span>
+            <span className="hidden sm:inline">Đăng xuất</span>
           </button>
         </div>
       </div>

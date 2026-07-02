@@ -47,14 +47,14 @@ export default function LoginView() {
           <div className="inline-flex items-center justify-center p-3 bg-black rounded-xl mb-4 shadow-md">
             <Building className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-black font-display tracking-tight">Welcome Back</h1>
-          <p className="text-[#45464d] mt-2 text-sm">Sign in to Boarding House Management System</p>
+          <h1 className="text-3xl font-bold text-black font-display tracking-tight">Chào Mừng Trở Lại</h1>
+          <p className="text-[#45464d] mt-2 text-sm">Đăng nhập vào Hệ Thống Quản Lý Nhà Trọ</p>
         </div>
 
         <div className="bg-white border border-[#c6c6cd] rounded-xl p-6 shadow-sm">
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[#45464d] mb-1.5 uppercase tracking-wider">Email Address</label>
+              <label className="block text-xs font-bold text-[#45464d] mb-1.5 uppercase tracking-wider">Địa Chỉ Email</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Mail className="h-4 w-4 text-[#8a8a93]" />
@@ -72,7 +72,7 @@ export default function LoginView() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#45464d] mb-1.5 uppercase tracking-wider">Password</label>
+              <label className="block text-xs font-bold text-[#45464d] mb-1.5 uppercase tracking-wider">Mật Khẩu</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Lock className="h-4 w-4 text-[#8a8a93]" />
@@ -103,14 +103,14 @@ export default function LoginView() {
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Sign In"
+                "Đăng Nhập"
               )}
             </button>
           </form>
 
           <div className="mt-6 flex items-center justify-center">
             <div className="border-t border-[#c6c6cd] flex-grow"></div>
-            <span className="px-3 text-xs text-[#8a8a93] uppercase font-bold">Or continue with</span>
+            <span className="px-3 text-xs text-[#8a8a93] uppercase font-bold">Hoặc tiếp tục với</span>
             <div className="border-t border-[#c6c6cd] flex-grow"></div>
           </div>
 

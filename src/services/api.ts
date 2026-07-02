@@ -1,14 +1,22 @@
 import { supabase } from '../lib/supabaseClient';
 import { USE_MOCK_DATA } from '../config';
-import { Room, Tenant, Bill, ActivityLog, UtilitySettings, DocumentTemplate } from '../types';
-import { 
-  initialRooms, 
-  initialTenants, 
-  initialBills, 
-  initialActivityLogs, 
-  initialUtilitySettings, 
-  initialTemplates 
+import { Room, Tenant, Bill, ActivityLog, UtilitySettings } from '../types';
+import {
+  initialRooms,
+  initialTenants,
+  initialBills,
+  initialActivityLogs,
+  initialUtilitySettings
 } from '../mockData';
+
+// Thrown by fetch* methods on a real Supabase error so the UI can surface it
+// instead of silently rendering stale/fake data.
+export class ApiFetchError extends Error {
+  constructor(message: string, public cause: unknown) {
+    super(message);
+    this.name = 'ApiFetchError';
+  }
+}
 
 export const api = {
   // Utility function to recursively map snake_case to camelCase
@@ -43,8 +51,7 @@ export const api = {
     if (USE_MOCK_DATA) return initialRooms;
     const { data, error } = await supabase.from('rooms').select('*');
     if (error) {
-      console.error('Error fetching rooms:', error);
-      return initialRooms; // Fallback
+      throw new ApiFetchError('Không thể tải danh sách phòng từ cơ sở dữ liệu.', error);
     }
     return this.toCamelCase(data || []) as Room[];
   },
@@ -53,8 +60,7 @@ export const api = {
     if (USE_MOCK_DATA) return initialTenants;
     const { data, error } = await supabase.from('tenants').select('*');
     if (error) {
-      console.error('Error fetching tenants:', error);
-      return initialTenants;
+      throw new ApiFetchError('Không thể tải danh sách người thuê từ cơ sở dữ liệu.', error);
     }
     return this.toCamelCase(data || []) as Tenant[];
   },
@@ -63,8 +69,7 @@ export const api = {
     if (USE_MOCK_DATA) return initialBills;
     const { data, error } = await supabase.from('bills').select('*');
     if (error) {
-      console.error('Error fetching bills:', error);
-      return initialBills;
+      throw new ApiFetchError('Không thể tải danh sách hóa đơn từ cơ sở dữ liệu.', error);
     }
     return this.toCamelCase(data || []) as Bill[];
   },
@@ -73,30 +78,20 @@ export const api = {
     if (USE_MOCK_DATA) return initialActivityLogs;
     const { data, error } = await supabase.from('activity_logs').select('*');
     if (error) {
-      console.error('Error fetching activity logs:', error);
-      return [];
+      throw new ApiFetchError('Không thể tải nhật ký hoạt động từ cơ sở dữ liệu.', error);
     }
     return this.toCamelCase(data || []) as ActivityLog[];
   },
 
-  async fetchUtilitySettings(): Promise<UtilitySettings> {
+  // Returns null on error so callers can keep the last-known settings
+  // instead of silently displaying stale/fake mock prices.
+  async fetchUtilitySettings(): Promise<UtilitySettings | null> {
     if (USE_MOCK_DATA) return initialUtilitySettings;
     const { data, error } = await supabase.from('utility_settings').select('*').single();
     if (error) {
-      console.error('Error fetching utility settings:', error);
-      return initialUtilitySettings;
+      throw new ApiFetchError('Không thể tải cấu hình giá tiện ích từ cơ sở dữ liệu.', error);
     }
     return this.toCamelCase(data) as UtilitySettings;
-  },
-
-  async fetchTemplates(): Promise<DocumentTemplate[]> {
-    if (USE_MOCK_DATA) return initialTemplates;
-    const { data, error } = await supabase.from('document_templates').select('*');
-    if (error) {
-      console.error('Error fetching templates:', error);
-      return initialTemplates;
-    }
-    return this.toCamelCase(data || []) as DocumentTemplate[];
   },
 
   // --- MUTATION METHODS ---
@@ -110,7 +105,8 @@ export const api = {
 
   async updateTenant(id: string, updates: Partial<Tenant>): Promise<boolean> {
     if (USE_MOCK_DATA) return true;
-    const { error } = await supabase.from('tenants').update(this.toSnakeCase(updates)).eq('id', id);
+    const { id: _ignoredId, ...safeUpdates } = updates;
+    const { error } = await supabase.from('tenants').update(this.toSnakeCase(safeUpdates)).eq('id', id);
     if (error) console.error('Error updating tenant:', error);
     return !error;
   },
@@ -131,7 +127,8 @@ export const api = {
 
   async updateRoom(id: string, updates: Partial<Room>): Promise<boolean> {
     if (USE_MOCK_DATA) return true;
-    const { error } = await supabase.from('rooms').update(this.toSnakeCase(updates)).eq('id', id);
+    const { id: _ignoredId, ...safeUpdates } = updates;
+    const { error } = await supabase.from('rooms').update(this.toSnakeCase(safeUpdates)).eq('id', id);
     if (error) console.error('Error updating room:', error);
     return !error;
   },
@@ -147,6 +144,37 @@ export const api = {
     if (USE_MOCK_DATA) return true;
     const { error } = await supabase.from('rooms').delete().eq('id', id);
     if (error) console.error('Error deleting room:', error);
+    return !error;
+  },
+
+  async createBill(bill: Bill): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('bills').insert(this.toSnakeCase(bill));
+    if (error) console.error('Error creating bill:', error);
+    return !error;
+  },
+
+  async updateBill(id: string, updates: Partial<Omit<Bill, 'id'>>): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('bills').update(this.toSnakeCase(updates)).eq('id', id);
+    if (error) console.error('Error updating bill:', error);
+    return !error;
+  },
+
+  async deleteBill(id: string): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase.from('bills').delete().eq('id', id);
+    if (error) console.error('Error deleting bill:', error);
+    return !error;
+  },
+
+  // Upserts the single shared settings row (fixed id 'default-settings').
+  async updateUtilitySettings(updates: UtilitySettings): Promise<boolean> {
+    if (USE_MOCK_DATA) return true;
+    const { error } = await supabase
+      .from('utility_settings')
+      .upsert(this.toSnakeCase({ id: 'default-settings', ...updates }));
+    if (error) console.error('Error updating utility settings:', error);
     return !error;
   }
 };

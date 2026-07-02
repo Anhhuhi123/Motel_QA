@@ -57,14 +57,6 @@ export interface UtilitySettings {
   autoSync: boolean;
 }
 
-export interface DocumentTemplate {
-  id: string;
-  name: string;
-  description: string;
-  status: "Active" | "Inactive";
-  category: "Rental" | "Residence" | "Handover";
-}
-
 export interface ActivityLog {
   id: string;
   user: string;

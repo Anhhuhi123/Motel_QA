@@ -21,7 +21,7 @@ import {
   Trash2
 } from "lucide-react";
 import { Room, RoomStatus, Bill, Tenant } from "../types";
-import { formatVND } from "../utils";
+import { formatVND, roomStatusLabel, depositStatusLabel } from "../utils";
 
 interface RoomsViewProps {
   rooms: Room[];
@@ -56,8 +56,8 @@ export default function RoomsView({
   const occupancyRate = rooms.length > 0
     ? Math.round((occupiedRoomsCount / rooms.length) * 100)
     : 0;
-  const [selectedStatus, setSelectedStatus] = useState("All Status");
-  const [selectedProperty, setSelectedProperty] = useState("All Properties");
+  const [selectedStatus, setSelectedStatus] = useState("Tất cả trạng thái");
+  const [selectedProperty, setSelectedProperty] = useState("Tất cả khu");
   const [currentPage, setCurrentPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -65,9 +65,9 @@ export default function RoomsView({
 
   // New room form state
   const [roomNumber, setRoomNumber] = useState("");
-  const [roomName, setRoomName] = useState("Standard Studio");
+  const [roomName, setRoomName] = useState("Phòng Tiêu Chuẩn");
   const [roomFloor, setRoomFloor] = useState(1);
-  const [roomWing, setRoomWing] = useState("North Wing");
+  const [roomWing, setRoomWing] = useState("Khu Bắc");
   const [roomStatus, setRoomStatus] = useState<RoomStatus>("Available");
   const [roomMaxOccupants, setRoomMaxOccupants] = useState(2);
   const [roomRent, setRoomRent] = useState(4500000);
@@ -75,8 +75,8 @@ export default function RoomsView({
   // Clear filters function
   const handleClearFilters = () => {
     setLocalSearch("");
-    setSelectedStatus("All Status");
-    setSelectedProperty("All Properties");
+    setSelectedStatus("Tất cả trạng thái");
+    setSelectedProperty("Tất cả khu");
     setCurrentPage(1);
   };
 
@@ -92,15 +92,15 @@ export default function RoomsView({
 
     // Status matching
     const matchesStatus =
-      selectedStatus === "All Status" ||
+      selectedStatus === "Tất cả trạng thái" ||
       room.status === selectedStatus;
 
     // Property matching (we can map floor context as property category for mock)
     const matchesProperty =
-      selectedProperty === "All Properties" ||
-      (selectedProperty === "Grand Plaza" && room.floor === 1) ||
-      (selectedProperty === "North Lofts" && room.floor === 2) ||
-      (selectedProperty === "Riverside" && room.floor >= 3);
+      selectedProperty === "Tất cả khu" ||
+      (selectedProperty === "Khu A" && room.floor === 1) ||
+      (selectedProperty === "Khu B" && room.floor === 2) ||
+      (selectedProperty === "Khu C" && room.floor >= 3);
 
     return matchesSearch && matchesStatus && matchesProperty;
   });
@@ -136,15 +136,15 @@ export default function RoomsView({
       {/* Header section with Create triggers */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-black tracking-tight font-display">Rooms</h2>
-          <p className="text-xs text-[#45464d] mt-1">Total {rooms.length} rooms across managed properties</p>
+          <h2 className="text-3xl font-bold text-black tracking-tight font-display">Phòng</h2>
+          <p className="text-xs text-[#45464d] mt-1">Tổng cộng {rooms.length} phòng đang được quản lý</p>
         </div>
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-xs font-bold hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
-          <span>Create Room</span>
+          <span>Tạo Phòng Mới</span>
         </button>
       </div>
 
@@ -156,48 +156,48 @@ export default function RoomsView({
             type="text"
             value={localSearch}
             onChange={(e) => { setLocalSearch(e.target.value); setCurrentPage(1); }}
-            placeholder="Filter by room number or wing..."
+            placeholder="Lọc theo số phòng hoặc khu..."
             className="w-full bg-[#f2f4f6] border border-transparent rounded-lg pl-10 pr-4 py-2 text-xs font-semibold focus:ring-1 focus:ring-black focus:bg-white outline-none transition-all"
           />
         </div>
 
         {/* Status Dropdown */}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Status:</label>
+          <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Trạng thái:</label>
           <select
             value={selectedStatus}
             onChange={(e) => { setSelectedStatus(e.target.value); setCurrentPage(1); }}
             className="bg-[#f2f4f6] border border-transparent hover:border-[#c6c6cd] rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-black transition-all"
           >
-            <option>All Status</option>
-            <option>Occupied</option>
-            <option>Available</option>
-            <option>Maintenance</option>
+            <option>Tất cả trạng thái</option>
+            <option value="Occupied">Đã thuê</option>
+            <option value="Available">Còn trống</option>
+            <option value="Maintenance">Bảo trì</option>
           </select>
         </div>
 
         {/* Property Dropdown */}
         <div className="flex items-center gap-2">
-          <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Property:</label>
+          <label className="text-[10px] font-bold text-[#45464d] uppercase tracking-wider">Khu:</label>
           <select
             value={selectedProperty}
             onChange={(e) => { setSelectedProperty(e.target.value); setCurrentPage(1); }}
             className="bg-[#f2f4f6] border border-transparent hover:border-[#c6c6cd] rounded-lg px-3 py-2 text-xs font-bold cursor-pointer focus:outline-none focus:ring-1 focus:ring-black transition-all"
           >
-            <option>All Properties</option>
-            <option>Grand Plaza</option>
-            <option>North Lofts</option>
-            <option>Riverside</option>
+            <option>Tất cả khu</option>
+            <option>Khu A</option>
+            <option>Khu B</option>
+            <option>Khu C</option>
           </select>
         </div>
 
         {/* Clear Trigger */}
-        {(localSearch || selectedStatus !== "All Status" || selectedProperty !== "All Properties") && (
+        {(localSearch || selectedStatus !== "Tất cả trạng thái" || selectedProperty !== "Tất cả khu") && (
           <button
             onClick={handleClearFilters}
             className="text-[#0051d5] text-xs font-bold hover:underline px-2 cursor-pointer"
           >
-            Clear Filters
+            Xóa Bộ Lọc
           </button>
         )}
       </div>
@@ -208,11 +208,11 @@ export default function RoomsView({
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#f2f4f6] border-b border-[#c6c6cd]/50">
               <tr>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Room Number</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Status</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Monthly Rent</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Occupants</th>
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] text-right w-[20%]">Actions</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Số Phòng</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Trạng Thái</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Giá Thuê/Tháng</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] w-[20%]">Số Người</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-[#45464d] text-right w-[20%]">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#c6c6cd]/30">
@@ -231,7 +231,7 @@ export default function RoomsView({
                           </div>
                           <div>
                             <p className="text-xs font-bold text-black">{room.name}</p>
-                            <p className="text-[10px] text-[#45464d] mt-0.5">Floor {room.floor} · {room.wing}</p>
+                            <p className="text-[10px] text-[#45464d] mt-0.5">Tầng {room.floor} · {room.wing}</p>
                           </div>
                         </div>
                       </td>
@@ -248,7 +248,7 @@ export default function RoomsView({
                                 ? "bg-emerald-500"
                                 : "bg-red-500"
                             }`} />
-                          {room.status}
+                          {roomStatusLabel(room.status)}
                         </span>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs font-bold text-black">
@@ -274,27 +274,39 @@ export default function RoomsView({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1">
-                          {/* Cycle room status trigger for interactivity */}
+                          {/* Cycle room status trigger — only toggles Available <-> Maintenance.
+                              Occupied is only ever set via a real tenant assignment (Edit Room modal),
+                              never fabricated here, so occupant counts can't desync from real tenants. */}
                           <button
                             onClick={() => {
-                              const nextStatusMap: Record<RoomStatus, RoomStatus> = {
-                                "Available": "Occupied",
-                                "Occupied": "Maintenance",
-                                "Maintenance": "Available"
-                              };
-                              onEditRoomStatus(room.id, nextStatusMap[room.status]);
+                              const realTenantCount = tenants.filter(t => t.roomAssignment === `Room ${room.number}`).length;
+
+                              if (room.status === "Available") {
+                                onEditRoomStatus(room.id, "Maintenance");
+                                return;
+                              }
+                              if (room.status === "Maintenance") {
+                                onEditRoomStatus(room.id, "Available");
+                                return;
+                              }
+                              // room.status === "Occupied"
+                              if (realTenantCount > 0) {
+                                alert("Phòng vẫn còn người thuê thật. Hãy gỡ/chuyển người thuê trong mục Sửa Phòng trước khi đổi trạng thái.");
+                                return;
+                              }
+                              onEditRoomStatus(room.id, "Maintenance");
                             }}
-                            title="Cycle Room Status"
+                            title="Đổi Trạng Thái"
                             className="p-1 px-2 text-[10px] items-center gap-1 border border-[#c6c6cd] hover:border-black rounded text-[#45464d] hover:text-black font-semibold cursor-pointer"
                           >
-                            Cycle Status
+                            Đổi Trạng Thái
                           </button>
                           <button
                             onClick={() => {
                               setEditingRoom(room);
                               setSelectedTenantToAssign("");
                             }}
-                            title="Edit Room"
+                            title="Sửa Phòng"
                             className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors cursor-pointer"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -305,7 +317,7 @@ export default function RoomsView({
                                 onDeleteRoom(room.id);
                               }
                             }}
-                            title="Delete Room"
+                            title="Xóa Phòng"
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -318,7 +330,7 @@ export default function RoomsView({
               ) : (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-xs text-[#76777d] font-semibold">
-                    No matching rooms detected with selected specifications.
+                    Không tìm thấy phòng phù hợp với bộ lọc đã chọn.
                   </td>
                 </tr>
               )}
@@ -329,7 +341,7 @@ export default function RoomsView({
         {/* Dynamic Pagination Bar */}
         <div className="px-6 py-4 bg-[#f2f4f6] border-t border-[#c6c6cd]/50 flex items-center justify-between">
           <span className="text-xs text-[#45464d] font-semibold">
-            Showing {filteredRooms.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + itemsPerPage, filteredRooms.length)} of {filteredRooms.length} rooms
+            Hiển thị {filteredRooms.length > 0 ? startIndex + 1 : 0} đến {Math.min(startIndex + itemsPerPage, filteredRooms.length)} trong {filteredRooms.length} phòng
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -371,7 +383,7 @@ export default function RoomsView({
             </div>
             <span className="text-xs font-bold text-emerald-600">+4.2%</span>
           </div>
-          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Occupancy Rate</p>
+          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Tỷ Lệ Lấp Đầy</p>
           <p className="text-3xl font-bold text-black font-display mt-1">{occupancyRate}%</p>
         </div>
 
@@ -380,9 +392,9 @@ export default function RoomsView({
             <div className="p-2 bg-blue-50 rounded-lg text-blue-600">
               <CreditCard className="w-5 h-5 text-[#0051d5]" />
             </div>
-            <span className="text-xs font-bold text-[#0051d5]">Stable</span>
+            <span className="text-xs font-bold text-[#0051d5]">Ổn định</span>
           </div>
-          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider0">Total Utility Revenue</p>
+          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider0">Tổng Doanh Thu Tiện Ích</p>
           <p className="text-3xl font-bold text-black font-display mt-1">
             {formatVND(bills.reduce((sum, b) => sum + b.electricity + b.water, 0))}
           </p>
@@ -393,9 +405,9 @@ export default function RoomsView({
             <div className="p-2 bg-orange-50 rounded-lg text-orange-600">
               <Wrench className="w-5 h-5 text-orange-500" />
             </div>
-            <span className="text-xs font-bold text-orange-600">3 Pending</span>
+            <span className="text-xs font-bold text-orange-600">3 Đang chờ</span>
           </div>
-          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Under Maintenance</p>
+          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Đang Bảo Trì</p>
           <p className="text-3xl font-bold text-black font-display mt-1">
             {rooms.filter(r => r.status === "Maintenance").length.toString().padStart(2, "0")}
           </p>
@@ -409,7 +421,7 @@ export default function RoomsView({
                 <Sparkles className="w-4 h-4 text-emerald-400" />
               </div>
             </div>
-            <p className="text-slate-300 text-[10px] uppercase font-bold tracking-wider">Ready to Lease</p>
+            <p className="text-slate-300 text-[10px] uppercase font-bold tracking-wider">Sẵn Sàng Cho Thuê</p>
             <p className="text-3xl font-bold text-white font-display mt-1">
               {rooms.filter(r => r.status === "Available").length.toString().padStart(2, "0")}
             </p>
@@ -418,7 +430,7 @@ export default function RoomsView({
             onClick={() => { setSelectedStatus("Available"); setCurrentPage(1); }}
             className="inline-flex items-center text-xs font-bold text-emerald-400 mt-4 hover:text-white transition-colors"
           >
-            <span>Review Listings</span>
+            <span>Xem Danh Sách</span>
             <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -434,39 +446,39 @@ export default function RoomsView({
             >
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-bold text-black mb-4 font-display">Create New Room</h3>
+            <h3 className="text-lg font-bold text-black mb-4 font-display">Tạo Phòng Mới</h3>
 
             <form onSubmit={handleSubmitRoom} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Number *</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Số Phòng *</label>
                   <input
                     type="text"
                     value={roomNumber}
                     onChange={(e) => setRoomNumber(e.target.value)}
-                    placeholder="e.g. 105"
+                    placeholder="VD: 105"
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Type</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Loại Phòng</label>
                   <select
                     value={roomName}
                     onChange={(e) => setRoomName(e.target.value)}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
-                    <option>Standard Studio</option>
-                    <option>Deluxe Suite</option>
-                    <option>Executive Loft</option>
-                    <option>Presidential Suite</option>
+                    <option>Phòng Tiêu Chuẩn</option>
+                    <option>Phòng Cao Cấp</option>
+                    <option>Căn Hộ Hạng Sang</option>
+                    <option>Căn Hộ Tổng Thống</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Floor Level</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Tầng</label>
                   <input
                     type="number"
                     value={roomFloor}
@@ -475,12 +487,12 @@ export default function RoomsView({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Wing Sector</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Khu</label>
                   <input
                     type="text"
                     value={roomWing}
                     onChange={(e) => setRoomWing(e.target.value)}
-                    placeholder="North Wing"
+                    placeholder="Khu Bắc"
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
                   />
                 </div>
@@ -488,7 +500,7 @@ export default function RoomsView({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Max Occupants</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Số Người Tối Đa</label>
                   <input
                     type="number"
                     value={roomMaxOccupants}
@@ -497,21 +509,21 @@ export default function RoomsView({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Status</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Trạng Thái</label>
                   <select
                     value={roomStatus}
                     onChange={(e) => setRoomStatus(e.target.value as RoomStatus)}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
-                    <option value="Available">Available</option>
-                    <option value="Occupied">Occupied</option>
-                    <option value="Maintenance">Maintenance</option>
+                    <option value="Available">Còn trống</option>
+                    <option value="Occupied">Đã thuê</option>
+                    <option value="Maintenance">Bảo trì</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#45464d] mb-1">Monthly Rent (VND) *</label>
+                <label className="block text-xs font-bold text-[#45464d] mb-1">Giá Thuê/Tháng (VND) *</label>
                 <input
                   type="number"
                   value={roomRent}
@@ -527,13 +539,13 @@ export default function RoomsView({
                   onClick={() => setIsAddModalOpen(false)}
                   className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
-                  Create Room
+                  Tạo Phòng
                 </button>
               </div>
             </form>
@@ -552,7 +564,7 @@ export default function RoomsView({
             >
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-bold text-black mb-4 font-display">Edit Room {editingRoom.number}</h3>
+            <h3 className="text-lg font-bold text-black mb-4 font-display">Sửa Phòng {editingRoom.number}</h3>
 
             <form
               onSubmit={(e) => {
@@ -566,7 +578,7 @@ export default function RoomsView({
             >
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Number *</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Số Phòng *</label>
                   <input
                     type="text"
                     value={editingRoom.number}
@@ -576,23 +588,23 @@ export default function RoomsView({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Room Type</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Loại Phòng</label>
                   <select
                     value={editingRoom.name}
                     onChange={(e) => setEditingRoom({ ...editingRoom, name: e.target.value })}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
-                    <option>Standard Studio</option>
-                    <option>Deluxe Suite</option>
-                    <option>Executive Loft</option>
-                    <option>Presidential Suite</option>
+                    <option>Phòng Tiêu Chuẩn</option>
+                    <option>Phòng Cao Cấp</option>
+                    <option>Căn Hộ Hạng Sang</option>
+                    <option>Căn Hộ Tổng Thống</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Floor Level</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Tầng</label>
                   <input
                     type="number"
                     value={editingRoom.floor}
@@ -601,7 +613,7 @@ export default function RoomsView({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Wing Sector</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Khu</label>
                   <input
                     type="text"
                     value={editingRoom.wing}
@@ -613,7 +625,7 @@ export default function RoomsView({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Max Occupants</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Số Người Tối Đa</label>
                   <input
                     type="number"
                     value={editingRoom.maxOccupants}
@@ -622,7 +634,7 @@ export default function RoomsView({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Current Occupants</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Số Người Hiện Tại</label>
                   <input
                     type="number"
                     value={editingRoom.currentOccupants}
@@ -634,19 +646,19 @@ export default function RoomsView({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Status</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Trạng Thái</label>
                   <select
                     value={editingRoom.status}
                     onChange={(e) => setEditingRoom({ ...editingRoom, status: e.target.value as RoomStatus })}
                     className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
-                    <option value="Available">Available</option>
-                    <option value="Occupied">Occupied</option>
-                    <option value="Maintenance">Maintenance</option>
+                    <option value="Available">Còn trống</option>
+                    <option value="Occupied">Đã thuê</option>
+                    <option value="Maintenance">Bảo trì</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#45464d] mb-1">Monthly Rent (VND) *</label>
+                  <label className="block text-xs font-bold text-[#45464d] mb-1">Giá Thuê/Tháng (VND) *</label>
                   <input
                     type="number"
                     value={editingRoom.monthlyRent}
@@ -660,7 +672,7 @@ export default function RoomsView({
               {/* Current Occupants Information Section */}
               <div className="pt-4 border-t border-[#c6c6cd]">
                 <div className="flex justify-between items-center mb-2">
-                  <label className="block text-xs font-bold text-[#45464d]">Current Occupants Information</label>
+                  <label className="block text-xs font-bold text-[#45464d]">Người Thuê Hiện Tại</label>
                   <span className="text-xs font-bold bg-[#f2f4f6] border border-[#c6c6cd] px-2 py-0.5 rounded-md">
                     {tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}`).length} / {editingRoom.maxOccupants}
                   </span>
@@ -679,7 +691,7 @@ export default function RoomsView({
                           )}
                           <div>
                             <p className="text-[11px] font-bold text-black">{tenant.name}</p>
-                            <p className="text-[10px] text-[#76777d]">{tenant.phone} • ID: {tenant.nationalId}</p>
+                            <p className="text-[10px] text-[#76777d]">{tenant.phone} • CCCD: {tenant.nationalId}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -689,12 +701,12 @@ export default function RoomsView({
                                 ? "bg-amber-50 text-amber-700 border-amber-100"
                                 : "bg-red-50 text-red-700 border-red-100"
                             }`}>
-                            {tenant.depositStatus}
+                            {depositStatusLabel(tenant.depositStatus)}
                           </span>
                           <button
                             type="button"
                             onClick={() => {
-                              if (window.confirm("Are you sure you want to remove this tenant from the room?") && onRemoveTenantFromRoom) {
+                              if (window.confirm("Bạn có chắc chắn muốn gỡ người thuê này khỏi phòng?") && onRemoveTenantFromRoom) {
                                 onRemoveTenantFromRoom(editingRoom.id, tenant.id);
                                 setEditingRoom({
                                   ...editingRoom,
@@ -704,7 +716,7 @@ export default function RoomsView({
                               }
                             }}
                             className="p-1 text-[#76777d] hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            title="Remove tenant from room"
+                            title="Gỡ người thuê khỏi phòng"
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -712,23 +724,23 @@ export default function RoomsView({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[#76777d] italic py-1">No tenants currently assigned to this room.</p>
+                    <p className="text-xs text-[#76777d] italic py-1">Chưa có người thuê nào trong phòng này.</p>
                   )}
                 </div>
               </div>
 
               {/* Assign Tenant Section */}
               <div className="pt-4 border-t border-[#c6c6cd]">
-                <label className="block text-xs font-bold text-[#45464d] mb-1">Assign Existing Tenant</label>
+                <label className="block text-xs font-bold text-[#45464d] mb-1">Gán Người Thuê Có Sẵn</label>
                 <div className="flex gap-2">
                   <select
                     value={selectedTenantToAssign}
                     onChange={(e) => setSelectedTenantToAssign(e.target.value)}
                     className="flex-1 border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none cursor-pointer"
                   >
-                    <option value="">-- Select a Tenant --</option>
+                    <option value="">-- Chọn người thuê --</option>
                     {tenants.filter(t => t.roomAssignment !== `Room ${editingRoom.number}`).map(t => (
-                      <option key={t.id} value={t.id}>{t.name} (Currently: {t.roomAssignment || 'None'})</option>
+                      <option key={t.id} value={t.id}>{t.name} (Hiện tại: {t.roomAssignment || 'Chưa có'})</option>
                     ))}
                   </select>
                   <button
@@ -743,13 +755,13 @@ export default function RoomsView({
                           status: "Occupied",
                           currentOccupants: Math.min(editingRoom.currentOccupants + 1, editingRoom.maxOccupants)
                         });
-                        alert("Tenant assigned successfully!");
+                        alert("Gán người thuê thành công!");
                       }
                     }}
                     disabled={!selectedTenantToAssign}
                     className="bg-[#0051d5] text-white px-4 rounded-lg text-xs font-bold cursor-pointer hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    Assign
+                    Gán
                   </button>
                 </div>
               </div>
@@ -760,13 +772,13 @@ export default function RoomsView({
                   onClick={() => setEditingRoom(null)}
                   className="flex-1 border border-[#c6c6cd] py-2.5 rounded-lg text-xs font-bold text-[#45464d] cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 transition-colors"
                 >
-                  Save Changes
+                  Lưu Thay Đổi
                 </button>
               </div>
             </form>
