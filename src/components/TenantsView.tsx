@@ -148,7 +148,97 @@ export default function TenantsView({
 
       {/* Main Tenant Table list */}
       <div className="bg-white border border-[#c6c6cd] rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Mobile Card List — replaces the table below md so no data is hidden behind horizontal scroll */}
+        <div className="md:hidden divide-y divide-[#c6c6cd]/30">
+          {paginatedTenants.length > 0 ? (
+            paginatedTenants.map((tenant) => (
+              <div key={tenant.id} className="p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  {tenant.avatarUrl ? (
+                    <img
+                      alt={`${tenant.name} avatar`}
+                      src={tenant.avatarUrl}
+                      className="w-10 h-10 rounded-full object-cover border border-[#c6c6cd] shadow-2xs shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold border border-slate-200 shrink-0">
+                      {(tenant.name || 'U').substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-black truncate">{tenant.name}</p>
+                    <p className="text-[10px] text-[#45464d] mt-0.5 flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-[#76777d] shrink-0" />
+                      <span className="truncate">{tenant.email}</span>
+                    </p>
+                  </div>
+                  <span className={`ml-auto shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${
+                    tenant.depositStatus === "Paid"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                      : tenant.depositStatus === "Partial"
+                        ? "bg-amber-50 text-amber-700 border-amber-100"
+                        : "bg-red-50 text-red-700 border-red-100"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                      tenant.depositStatus === "Paid"
+                        ? "bg-emerald-500"
+                        : tenant.depositStatus === "Partial"
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                    }`} />
+                    {depositStatusLabel(tenant.depositStatus)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <p className="text-black font-semibold flex items-center gap-1.5 font-mono">
+                    <Phone className="w-3 h-3 text-[#76777d] shrink-0" />
+                    <span>{tenant.phone}</span>
+                  </p>
+                  <p className="text-[#45464d] flex items-center gap-1.5 font-mono">
+                    <IdCard className="w-3 h-3 text-[#76777d] shrink-0" />
+                    <span>{tenant.nationalId}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#45464d] font-semibold">Phòng</span>
+                  <span className="text-xs font-bold text-black border border-[#c6c6cd] px-2 py-0.5 rounded-md bg-[#f2f4f6]">
+                    {tenant.roomAssignment}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[#45464d] font-semibold">Ngày Bắt Đầu Hợp Đồng</span>
+                  <span className="font-mono font-bold text-black">{tenant.contractStart}</span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-[#c6c6cd]/50">
+                  <button
+                    onClick={() => setSelectedContractTenant(tenant)}
+                    className="flex-1 px-2 py-1.5 bg-black text-white hover:bg-slate-800 rounded font-bold text-[10px] inline-flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Xem Hợp Đồng</span>
+                  </button>
+                  <button
+                    onClick={() => onRemoveTenant(tenant.id)}
+                    title="Xóa hoặc chấm dứt hợp đồng người thuê"
+                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-xs text-[#76777d] font-semibold">
+              Không tìm thấy người thuê phù hợp với bộ lọc đã chọn.
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#f2f4f6] border-b border-[#c6c6cd]/50">
               <tr>

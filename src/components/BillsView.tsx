@@ -187,7 +187,81 @@ export default function BillsView({
         <div className="p-5 border-b border-[#c6c6cd]/50 bg-slate-50/50">
           <h3 className="text-sm font-bold text-black font-display">Tất cả hóa đơn của các phòng</h3>
         </div>
-        <div className="overflow-x-auto">
+        {/* Mobile Card List — replaces the table below md so no data is hidden behind horizontal scroll */}
+        <div className="md:hidden divide-y divide-[#c6c6cd]/30">
+          {paginatedBills.length > 0 ? (
+            paginatedBills.map((bill) => (
+              <div key={bill.id} className="p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-black border border-[#c6c6cd] px-2 py-0.5 rounded-md bg-[#eceef0]">
+                      {bill.room}
+                    </span>
+                    <span className="text-xs text-[#45464d] font-bold font-mono">{bill.month}</span>
+                  </div>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    bill.status === "Paid"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                      : bill.status === "Pending"
+                        ? "bg-amber-50 text-amber-700 border-amber-100"
+                        : "bg-red-50 text-red-700 border-red-100"
+                  }`}>
+                    <span className={`w-1 h-1 rounded-full mr-1 ${
+                      bill.status === "Paid"
+                        ? "bg-emerald-500"
+                        : bill.status === "Pending"
+                          ? "bg-amber-500"
+                          : "bg-red-500"
+                    }`} />
+                    {billStatusLabel(bill.status)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-y-1.5 text-xs">
+                  <span className="text-[#45464d] font-semibold">Tiền Điện</span>
+                  <span className="font-mono text-black text-right">{formatVND(bill.electricity)}</span>
+                  <span className="text-[#45464d] font-semibold">Tiền Nước</span>
+                  <span className="font-mono text-black text-right">{formatVND(bill.water)}</span>
+                  <span className="text-[#45464d] font-semibold">Tiền Phòng</span>
+                  <span className="font-mono text-black text-right">{formatVND(bill.rent)}</span>
+                  <span className="text-[#45464d] font-bold pt-1 border-t border-[#c6c6cd]/50">Tổng Tiền</span>
+                  <span className="font-mono font-bold text-black text-right pt-1 border-t border-[#c6c6cd]/50">{formatVND(bill.total)}</span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-[#c6c6cd]/50">
+                  {bill.status !== "Paid" && (
+                    <button
+                      onClick={() => onMarkBillPaid(bill.id)}
+                      className="flex-1 bg-[#0051d5] hover:bg-black text-white text-[10px] font-bold px-2 py-1.5 rounded transition-colors"
+                    >
+                      Đánh Dấu Đã Trả
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedBill(bill)}
+                    title="Xem chi tiết hóa đơn"
+                    className="p-1.5 text-slate-400 hover:text-black hover:bg-slate-50 rounded"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => onSendNotice(bill.id)}
+                    title="Gửi lại thông báo email cho người thuê"
+                    className="p-1.5 text-slate-400 hover:text-[#0051d5] hover:bg-blue-50 rounded"
+                  >
+                    <Mail className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="px-6 py-12 text-center text-xs text-[#76777d] font-semibold">
+              Không tìm thấy hóa đơn phù hợp với bộ lọc đã chọn.
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#f2f4f6] border-b border-[#c6c6cd]/50">
               <tr>

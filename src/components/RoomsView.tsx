@@ -237,7 +237,140 @@ export default function RoomsView({
 
       {/* Main Rooms Listing Panel */}
       <div className="bg-white border border-[#c6c6cd] rounded-xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
+        {/* Mobile Card List — replaces the table below md so no data is hidden behind horizontal scroll */}
+        <div className="md:hidden divide-y divide-[#c6c6cd]/30">
+          {paginatedRooms.length > 0 ? (
+            paginatedRooms.map((room) => {
+              const percentCapacity = room.maxOccupants > 0
+                ? Math.round((room.currentOccupants / room.maxOccupants) * 100)
+                : 0;
+
+              return (
+                <div key={room.id} className="p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-black text-white flex items-center justify-center font-bold text-xs select-none shrink-0">
+                        {room.number}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-black truncate">{room.name}</p>
+                        <p className="text-[10px] text-[#45464d] mt-0.5">Tầng {room.floor} · {room.wing}</p>
+                      </div>
+                    </div>
+                    <span className={`shrink-0 inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold border ${room.status === "Occupied"
+                        ? "bg-[#316bf3]/10 text-[#0051d5] border-[#316bf3]/20"
+                        : room.status === "Available"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-red-50 text-red-700 border-red-100"
+                      }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${room.status === "Occupied"
+                          ? "bg-blue-600"
+                          : room.status === "Available"
+                            ? "bg-emerald-500"
+                            : "bg-red-500"
+                        }`} />
+                      {roomStatusLabel(room.status)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#45464d] font-semibold">Giá Thuê/Tháng</span>
+                    <span className="font-mono font-bold text-black">{formatVND(room.monthlyRent)}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#45464d] font-semibold">Số Người</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold font-mono text-[#45464d]">{room.currentOccupants}/{room.maxOccupants}</span>
+                      <div className="w-16 h-1.5 bg-[#eceef0] rounded-full overflow-hidden shrink-0">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${room.status === "Occupied"
+                              ? "bg-[#316bf3]"
+                              : room.status === "Available"
+                                ? "bg-emerald-500"
+                                : "bg-red-500"
+                            }`}
+                          style={{ width: `${percentCapacity}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#c6c6cd]/50">
+                    <button
+                      onClick={() => {
+                        const realTenantCount = tenants.filter(t => t.roomAssignment === `Room ${room.number}`).length;
+
+                        if (room.status === "Available") {
+                          onEditRoomStatus(room.id, "Maintenance");
+                          return;
+                        }
+                        if (room.status === "Maintenance") {
+                          onEditRoomStatus(room.id, "Available");
+                          return;
+                        }
+                        if (realTenantCount > 0) {
+                          alert("Phòng vẫn còn người thuê thật. Hãy gỡ/chuyển người thuê trong mục Sửa Phòng trước khi đổi trạng thái.");
+                          return;
+                        }
+                        onEditRoomStatus(room.id, "Maintenance");
+                      }}
+                      className="flex-1 px-2 py-1.5 text-[10px] border border-[#c6c6cd] hover:border-black rounded text-[#45464d] hover:text-black font-semibold cursor-pointer"
+                    >
+                      Đổi Trạng Thái
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPayingRoom(room);
+                        setReadingInput(room.lastElectricityReading || 0);
+                        setBillMonthInput(currentMonthInputValue());
+                        setFeeOverrides({
+                          electricityPrice: utilitySettings?.electricityPrice ?? 0,
+                          waterPrice: utilitySettings?.waterPrice ?? 0,
+                          internetFee: utilitySettings?.internetFee ?? 0,
+                          garbageFee: utilitySettings?.garbageFee ?? 0,
+                          parkingFee: utilitySettings?.parkingFee ?? 0,
+                          otherFee: utilitySettings?.otherFee ?? 0
+                        });
+                      }}
+                      title="Thanh Toán Nhanh"
+                      className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRoom(room);
+                        setSelectedTenantToAssign("");
+                      }}
+                      title="Sửa Phòng"
+                      className="p-1.5 text-[#45464d] hover:text-[#0051d5] hover:bg-white rounded transition-colors cursor-pointer"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onDeleteRoom) {
+                          onDeleteRoom(room.id);
+                        }
+                      }}
+                      title="Xóa Phòng"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="px-6 py-12 text-center text-xs text-[#76777d] font-semibold">
+              Không tìm thấy phòng phù hợp với bộ lọc đã chọn.
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#f2f4f6] border-b border-[#c6c6cd]/50">
               <tr>
