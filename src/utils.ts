@@ -55,3 +55,16 @@ export function billStatusLabel(status: BillStatus): string {
 export function formatMonthLabel(date: Date): string {
   return `Tháng ${date.getMonth() + 1}/${date.getFullYear()}`;
 }
+
+// Converts an <input type="month"> value ("YYYY-MM") into the "Tháng M/YYYY"
+// label used for bill.month, so quick bills can be backdated to past months.
+export function monthInputToLabel(value: string): string {
+  const [year, month] = value.split("-").map(Number);
+  return `Tháng ${month}/${year}`;
+}
+
+// Formats the current date as an <input type="month"> value ("YYYY-MM").
+export function currentMonthInputValue(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}

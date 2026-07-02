@@ -321,7 +321,7 @@ export default function BillsView({
 
       {/* Bill Breakdown details modal overlay */}
       {selectedBill && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-100">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-100">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-sm w-full p-6 shadow-2xl relative animate-scale-up">
             <button
               onClick={() => setSelectedBill(null)}

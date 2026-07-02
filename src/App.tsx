@@ -18,7 +18,7 @@ import AccountSettingsView from "./components/AccountSettingsView";
 
 import { Room, Tenant, Bill, ActivityLog, UtilitySettings, RoomStatus } from "./types";
 import { api, ApiFetchError } from "./services/api";
-import { formatMonthLabel, roomStatusLabel } from "./utils";
+import { roomStatusLabel } from "./utils";
 
 const generateId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -273,7 +273,8 @@ export default function App() {
       garbageFee: number;
       parkingFee: number;
       otherFee: number;
-    }
+    },
+    billMonth: string
   ) => {
     const targetRoom = rooms.find(r => r.id === roomId);
     if (!targetRoom) return;
@@ -283,7 +284,7 @@ export default function App() {
       return;
     }
 
-    const monthLabel = formatMonthLabel(new Date());
+    const monthLabel = billMonth;
     const alreadyBilled = bills.some(b => b.room === `Room ${targetRoom.number}` && b.month === monthLabel);
     if (alreadyBilled) {
       const confirmDup = window.confirm(`Phòng ${targetRoom.number} đã có hóa đơn tháng này. Vẫn tạo thêm hóa đơn mới?`);

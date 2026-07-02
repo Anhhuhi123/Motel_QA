@@ -21,6 +21,17 @@ import {
   X,
   TrendingUp
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LabelList
+} from "recharts";
 import { Room, Tenant, Bill, ActivityLog } from "../types";
 import { formatVND, roomStatusLabel } from "../utils";
 
@@ -40,7 +51,6 @@ export default function DashboardView({
   onNavigate
 }: DashboardViewProps) {
   const [selectedRange, setSelectedRange] = useState("6 Tháng Gần Đây");
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
   const [isFeaturedRoomModalOpen, setIsFeaturedRoomModalOpen] = useState(false);
 
   // Dynamic calculations based on state arrays
@@ -80,10 +90,12 @@ export default function DashboardView({
   const generateChartData = () => {
     const monthMap: Record<string, number> = {};
     bills.forEach(b => {
-      const match = b.month.match(/Tháng\s*(\d+)\/(\d+)/);
+      const match = b.month.match(/Tháng\s*(\d+)\s*\/\s*(\d+)/);
       if (match) {
-        const key = `${match[1]}/${match[2]}`;
-        monthMap[key] = (monthMap[key] || 0) + b.total;
+        // Normalize through Number() so "07/2026" and "7/2026" land on the
+        // same key regardless of how the month text was zero-padded.
+        const key = `${Number(match[1])}/${Number(match[2])}`;
+        monthMap[key] = (monthMap[key] || 0) + Number(b.total);
       }
     });
 
@@ -95,24 +107,20 @@ export default function DashboardView({
     });
     const currentKey = `${now.getMonth() + 1}/${now.getFullYear()}`;
 
-    const maxVal = Math.max(...Object.values(monthMap), 1);
-
     return months.map(({ month, year }) => {
       const key = `${month}/${year}`;
       const val = monthMap[key] || 0;
-      const percentage = maxVal > 0 ? Math.min(Math.round((val / maxVal) * 100), 100) : 0;
 
       return {
         label: `T${month}`,
-        height: `${percentage}%`,
-        value: `${(val / 1000000).toFixed(0)}Tr đ`,
-        active: key === currentKey,
-        projection: false
+        revenue: val,
+        active: key === currentKey
       };
     });
   };
 
   const barChartData = generateChartData();
+  const hasRevenueData = barChartData.some(bar => bar.revenue > 0);
 
   // Calculate Upcoming Expirations dynamically (mock logic: contracts > 11 months old)
   const upcomingExpirationsCount = tenants.filter(t => {
@@ -232,44 +240,62 @@ export default function DashboardView({
             </select>
           </div>
 
-          <div className="h-64 flex items-end justify-between gap-4 px-2 pt-6">
-            {barChartData.map((bar, idx) => (
-              <div
-                key={idx}
-                className="flex-1 flex flex-col items-center gap-2 group relative"
-                onMouseEnter={() => setHoveredBar(idx)}
-                onMouseLeave={() => setHoveredBar(null)}
-              >
-                {/* Tooltip on Hover */}
-                <div
-                  className={`absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] py-1 px-2 rounded-md shadow-lg transition-all duration-200 pointer-events-none whitespace-nowrap z-30 ${
-                    hoveredBar === idx || bar.active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
-                  }`}
-                >
-                  {bar.value}
-                </div>
-
-                {/* Pure CSS Bar */}
-                <div
-                  className={`w-full rounded-t transition-all duration-300 relative cursor-pointer ${
-                    bar.active
-                      ? "bg-[#0051d5] shadow-sm scale-102"
-                      : bar.projection
-                        ? "border-2 border-dashed border-[#c6c6cd] hover:border-black"
-                        : "bg-[#e0e3e5] hover:bg-[#0051d5]"
-                  }`}
-                  style={{
-                    height: bar.height,
-                    ...(bar.projection ? { backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 10px)' } : {})
-                  }}
-                ></div>
-
-                <span className={`text-xs ${bar.active ? "text-[#0051d5] font-bold text-sm" : "text-[#45464d] font-semibold"}`}>
-                  {bar.label}
-                </span>
-              </div>
-            ))}
-          </div>
+          {!hasRevenueData ? (
+            <div className="h-64 flex flex-col items-center justify-center gap-2 text-center">
+              <Coins className="w-8 h-8 text-[#c6c6cd]" />
+              <p className="text-sm font-bold text-[#45464d]">Chưa có dữ liệu doanh thu trong 6 tháng gần đây</p>
+              <p className="text-xs text-[#76777d]">Doanh thu sẽ hiển thị tại đây khi có hóa đơn cho các tháng này</p>
+            </div>
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barChartData} margin={{ top: 24, right: 8, left: 8, bottom: 0 }} barCategoryGap="30%">
+                  <CartesianGrid vertical={false} stroke="#e1e0d9" />
+                  <XAxis
+                    dataKey="label"
+                    axisLine={{ stroke: "#c3c2b7" }}
+                    tickLine={false}
+                    tick={{ fill: "#898781", fontSize: 12, fontWeight: 600 }}
+                  />
+                  <YAxis hide domain={[0, (max: number) => max * 1.2]} />
+                  <Tooltip
+                    cursor={{ fill: "#f2f4f6" }}
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      return (
+                        <div className="bg-black text-white text-xs py-1.5 px-3 rounded-md shadow-lg">
+                          <span className="font-bold">{formatVND(payload[0].value as number)}</span>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]} maxBarSize={28}>
+                    {barChartData.map((bar, idx) => (
+                      <Cell key={idx} fill={bar.active ? "#0051d5" : "#c6d9f7"} />
+                    ))}
+                    <LabelList
+                      dataKey="revenue"
+                      position="top"
+                      content={({ x, y, width, value, index }) => {
+                        const bar = index !== undefined ? barChartData[index] : undefined;
+                        if (!bar?.active || !value) return null;
+                        return (
+                          <text
+                            x={Number(x) + Number(width) / 2}
+                            y={Number(y) - 8}
+                            textAnchor="middle"
+                            className="fill-[#0051d5] text-[11px] font-bold"
+                          >
+                            {formatVND(value as number)}
+                          </text>
+                        );
+                      }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         {/* Secondary Widgets Column */}
@@ -426,7 +452,7 @@ export default function DashboardView({
 
       {/* Featured Room Details Modal */}
       {isFeaturedRoomModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-100">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-100">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full overflow-hidden shadow-2xl relative animate-scale-up">
             <button
               onClick={() => setIsFeaturedRoomModalOpen(false)}

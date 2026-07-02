@@ -307,7 +307,7 @@ export default function TenantsView({
 
       {/* Contract Agreement Viewer Dialog overlay */}
       {selectedContractTenant && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-2xl w-full p-8 shadow-2xl relative max-h-[85vh] overflow-y-auto animate-scale-up">
             <button
               onClick={() => setSelectedContractTenant(null)}

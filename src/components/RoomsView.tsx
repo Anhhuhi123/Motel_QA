@@ -10,18 +10,16 @@ import {
   Search,
   Eye,
   Edit2,
-  ArrowRight,
   CheckCircle,
   CreditCard,
   Wrench,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
   X,
   Trash2
 } from "lucide-react";
 import { Room, RoomStatus, Bill, Tenant, UtilitySettings } from "../types";
-import { formatVND, roomStatusLabel, depositStatusLabel } from "../utils";
+import { formatVND, roomStatusLabel, depositStatusLabel, monthInputToLabel, currentMonthInputValue } from "../utils";
 
 export interface QuickBillFeeOverrides {
   electricityPrice: number;
@@ -44,7 +42,7 @@ interface RoomsViewProps {
   onAssignTenant?: (roomId: string, tenantId: string) => void;
   onRemoveTenantFromRoom?: (roomId: string, tenantId: string) => void;
   onDeleteRoom?: (roomId: string) => void;
-  onCreateQuickBill?: (roomId: string, currentReading: number, overrides: QuickBillFeeOverrides) => void;
+  onCreateQuickBill?: (roomId: string, currentReading: number, overrides: QuickBillFeeOverrides, billMonth: string) => void;
   onNavigate?: (view: string) => void;
 }
 
@@ -69,6 +67,16 @@ export default function RoomsView({
   const occupancyRate = rooms.length > 0
     ? Math.round((occupiedRoomsCount / rooms.length) * 100)
     : 0;
+
+  // bill.month follows the "Tháng M/YYYY" format produced by formatMonthLabel
+  const now = new Date();
+  const currentMonthKey = `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`;
+  const totalReceivedThisMonth = bills
+    .filter(b => b.status === "Paid" && b.month === currentMonthKey)
+    .reduce((sum, b) => sum + b.total, 0);
+  const totalReceivedAllTime = bills
+    .filter(b => b.status === "Paid")
+    .reduce((sum, b) => sum + b.total, 0);
   const [selectedStatus, setSelectedStatus] = useState("Tất cả trạng thái");
   const [selectedProperty, setSelectedProperty] = useState("Tất cả khu");
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +85,7 @@ export default function RoomsView({
   const [selectedTenantToAssign, setSelectedTenantToAssign] = useState<string>("");
   const [payingRoom, setPayingRoom] = useState<Room | null>(null);
   const [readingInput, setReadingInput] = useState<number>(0);
+  const [billMonthInput, setBillMonthInput] = useState<string>(currentMonthInputValue());
   const [feeOverrides, setFeeOverrides] = useState<QuickBillFeeOverrides>({
     electricityPrice: 0,
     waterPrice: 0,
@@ -329,6 +338,7 @@ export default function RoomsView({
                             onClick={() => {
                               setPayingRoom(room);
                               setReadingInput(room.lastElectricityReading || 0);
+                              setBillMonthInput(currentMonthInputValue());
                               setFeeOverrides({
                                 electricityPrice: utilitySettings?.electricityPrice ?? 0,
                                 waterPrice: utilitySettings?.waterPrice ?? 0,
@@ -455,32 +465,34 @@ export default function RoomsView({
           </p>
         </div>
 
-        {/* Ready to Lease CTA Card */}
-        <div className="relative overflow-hidden bg-black text-white p-6 rounded-xl border border-[#c6c6cd] group shadow-sm flex flex-col justify-between">
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-white/10 rounded-lg text-white">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-              </div>
+        <div className="bg-white p-6 rounded-xl border border-[#c6c6cd] hover:border-black/20 transition-all shadow-2xs">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+              <CreditCard className="w-5 h-5 text-emerald-500" />
             </div>
-            <p className="text-slate-300 text-[10px] uppercase font-bold tracking-wider">Sẵn Sàng Cho Thuê</p>
-            <p className="text-3xl font-bold text-white font-display mt-1">
-              {rooms.filter(r => r.status === "Available").length.toString().padStart(2, "0")}
-            </p>
           </div>
-          <button
-            onClick={() => { setSelectedStatus("Available"); setCurrentPage(1); }}
-            className="inline-flex items-center text-xs font-bold text-emerald-400 mt-4 hover:text-white transition-colors"
-          >
-            <span>Xem Danh Sách</span>
-            <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
-          </button>
+          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Tổng Tiền Phòng Đã Nhận Trong Tháng</p>
+          <p className="text-3xl font-bold text-black font-display mt-1">
+            {formatVND(totalReceivedThisMonth)}
+          </p>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-[#c6c6cd] hover:border-black/20 transition-all shadow-2xs">
+          <div className="flex justify-between items-start mb-4">
+            <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
+              <CreditCard className="w-5 h-5 text-emerald-500" />
+            </div>
+          </div>
+          <p className="text-[#45464d] text-[10px] uppercase font-bold tracking-wider">Tổng Tiền Đã Nhận Từ Trước Tới Nay</p>
+          <p className="text-3xl font-bold text-black font-display mt-1">
+            {formatVND(totalReceivedAllTime)}
+          </p>
         </div>
       </div>
 
       {/* Add Room Modal overlay */}
       {isAddModalOpen && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up">
             <button
               onClick={() => setIsAddModalOpen(false)}
@@ -598,7 +610,7 @@ export default function RoomsView({
 
       {/* Edit Room Modal overlay */}
       {editingRoom && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setEditingRoom(null)}
@@ -839,7 +851,7 @@ export default function RoomsView({
 
       {/* Quick Payment Modal overlay */}
       {payingRoom && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-xs flex items-center justify-center p-4 z-[9999]">
           <div className="bg-white border border-[#c6c6cd] rounded-xl max-w-md w-full p-6 shadow-2xl relative animate-scale-up max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setPayingRoom(null)}
@@ -864,6 +876,17 @@ export default function RoomsView({
                   <div className="bg-[#f7f9fb] border border-[#c6c6cd]/50 rounded-lg p-3 flex justify-between items-center">
                     <span className="text-xs font-bold text-[#45464d]">Tiền Phòng</span>
                     <span className="text-sm font-bold text-black">{formatVND(payingRoom.monthlyRent)}</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-[#45464d] mb-1">Tháng Thanh Toán</label>
+                    <input
+                      type="month"
+                      value={billMonthInput}
+                      onChange={(e) => setBillMonthInput(e.target.value)}
+                      className="w-full border border-[#c6c6cd] rounded-lg p-2 text-xs focus:ring-1 focus:ring-[#0051d5] outline-none"
+                    />
+                    <p className="text-[10px] text-[#76777d] mt-1">Chọn tháng cũ để bổ sung tiền còn thiếu của tháng đó.</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -983,7 +1006,7 @@ export default function RoomsView({
                       type="button"
                       disabled={!isReadingValid}
                       onClick={() => {
-                        onCreateQuickBill?.(payingRoom.id, readingInput, feeOverrides);
+                        onCreateQuickBill?.(payingRoom.id, readingInput, feeOverrides, monthInputToLabel(billMonthInput));
                         setPayingRoom(null);
                       }}
                       className="flex-1 bg-black text-white py-2.5 rounded-lg text-xs font-bold cursor-pointer hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
