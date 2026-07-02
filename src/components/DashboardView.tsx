@@ -469,7 +469,7 @@ export default function DashboardView({
               </div>
             </div>
             <div className="p-6 space-y-4 text-xs text-black">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="border border-[#c6c6cd]/50 rounded-lg p-2.5">
                   <p className="text-[10px] text-[#45464d] uppercase font-bold">Giá Thuê/Tháng</p>
                   <p className="font-bold text-sm mt-0.5">{featuredRoom ? formatVND(featuredRoom.monthlyRent) : 'N/A'}</p>

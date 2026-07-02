@@ -427,7 +427,7 @@ export default function RoomsView({
       </div>
 
       {/* Bento Grid Rooms Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl border border-[#c6c6cd] hover:border-black/20 transition-all shadow-2xs">
           <div className="flex justify-between items-start mb-4">
             <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
@@ -503,7 +503,7 @@ export default function RoomsView({
             <h3 className="text-lg font-bold text-black mb-4 font-display">Tạo Phòng Mới</h3>
 
             <form onSubmit={handleSubmitRoom} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Số Phòng *</label>
                   <input
@@ -530,7 +530,7 @@ export default function RoomsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Tầng</label>
                   <input
@@ -552,7 +552,7 @@ export default function RoomsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Số Người Tối Đa</label>
                   <input
@@ -630,7 +630,7 @@ export default function RoomsView({
               }}
               className="space-y-4"
             >
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Số Phòng *</label>
                   <input
@@ -656,7 +656,7 @@ export default function RoomsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Tầng</label>
                   <input
@@ -677,7 +677,7 @@ export default function RoomsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Số Người Tối Đa</label>
                   <input
@@ -698,7 +698,7 @@ export default function RoomsView({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[#45464d] mb-1">Trạng Thái</label>
                   <select
@@ -889,7 +889,7 @@ export default function RoomsView({
                     <p className="text-[10px] text-[#76777d] mt-1">Chọn tháng cũ để bổ sung tiền còn thiếu của tháng đó.</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-[#45464d] mb-1">Chỉ Số Điện Kỳ Trước</label>
                       <input
@@ -918,7 +918,7 @@ export default function RoomsView({
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-[#c6c6cd] grid grid-cols-2 gap-4">
+                  <div className="pt-2 border-t border-[#c6c6cd] grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-[#45464d] mb-1">Đơn Giá Điện / kWh</label>
                       <input

@@ -35,6 +35,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState("dashboard");
   const [globalSearch, setGlobalSearch] = useState("");
   const [dataError, setDataError] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -703,6 +704,8 @@ export default function App() {
       {/* Sidebar Navigation Panel */}
       <Sidebar
         currentView={currentView}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
         onViewChange={(view) => {
           setCurrentView(view);
           setGlobalSearch(""); // clear search on navigation
@@ -710,15 +713,16 @@ export default function App() {
       />
 
       {/* Global Header and Content Layout */}
-      <div className="flex-1 pl-[240px] flex flex-col min-h-screen">
+      <div className="flex-1 md:pl-[240px] flex flex-col min-h-screen">
         <Header
           currentView={currentView}
           searchQuery={globalSearch}
           onSearchChange={setGlobalSearch}
+          onMenuClick={() => setIsSidebarOpen(true)}
         />
 
         {/* Render View Container */}
-        <main className="flex-grow pt-24 px-8 pb-12 overflow-y-auto">
+        <main className="flex-grow pt-20 md:pt-24 px-4 sm:px-6 md:px-8 pb-12 overflow-y-auto">
           {dataError && (
             <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               <span>{dataError}</span>

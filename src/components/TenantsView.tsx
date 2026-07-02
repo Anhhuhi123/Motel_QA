@@ -360,30 +360,6 @@ export default function TenantsView({
               </div>
 
               <div className="space-y-2">
-                <p className="font-bold text-black">Điều 2: Phương thức thanh toán</p>
-                <p className="text-[#45464d]">
-                  Bên thuê có nghĩa vụ hoàn tất hóa đơn dịch vụ điện nước từ ngày 1 đến ngày 5 mỗi tháng thông qua hệ thống Propria.
-                  Số tiền thanh toán quá hạn sẽ chịu lãi suất 0.05%/ngày.
-                </p>
-              </div>
-
-              {/* Signature block: this contract is a printable preview only — no e-signature has
-                  actually been captured yet, so we don't claim a signed/verified status here. */}
-              <div className="border-t pt-6 grid grid-cols-2 text-center text-[11px] gap-8 mt-12 bg-gray-50 p-4 rounded-lg">
-                <div>
-                  <p className="font-bold uppercase">Đại diện Bên A</p>
-                  <p className="text-[#76777d] italic mt-1">Chưa ký</p>
-                  <div className="h-16 flex items-center justify-center">
-                    <span className="font-serif italic font-bold text-gray-400 text-lg">{lessor?.fullName || "..."}</span>
-                  </div>
-                </div>
-                <div>
-                  <p className="font-bold uppercase">Bên B - Người Thuê</p>
-                  <p className="text-[#76777d] italic mt-1">Chưa ký</p>
-                  <div className="h-16 flex items-center justify-center">
-                    <span className="font-serif italic font-bold text-slate-700 text-lg">{selectedContractTenant.name}</span>
-                  </div>
-                </div>
               </div>
             </div>
 
