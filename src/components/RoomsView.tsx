@@ -708,10 +708,14 @@ export default function RoomsView({
                             onClick={() => {
                               if (window.confirm("Bạn có chắc chắn muốn gỡ người thuê này khỏi phòng?") && onRemoveTenantFromRoom) {
                                 onRemoveTenantFromRoom(editingRoom.id, tenant.id);
+                                const remainingOccupants = Math.max(
+                                  tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}` && t.id !== tenant.id).length,
+                                  0
+                                );
                                 setEditingRoom({
                                   ...editingRoom,
-                                  status: editingRoom.currentOccupants - 1 <= 0 ? "Available" : editingRoom.status,
-                                  currentOccupants: Math.max(editingRoom.currentOccupants - 1, 0)
+                                  status: remainingOccupants === 0 ? "Available" : editingRoom.status,
+                                  currentOccupants: remainingOccupants
                                 });
                               }
                             }}
@@ -750,10 +754,14 @@ export default function RoomsView({
                         onAssignTenant(editingRoom.id, selectedTenantToAssign);
                         setSelectedTenantToAssign("");
                         // Update local editing room state to reflect the new occupant count
+                        const newOccupants = Math.min(
+                          tenants.filter(t => t.roomAssignment === `Room ${editingRoom.number}` && t.id !== selectedTenantToAssign).length + 1,
+                          editingRoom.maxOccupants
+                        );
                         setEditingRoom({
                           ...editingRoom,
                           status: "Occupied",
-                          currentOccupants: Math.min(editingRoom.currentOccupants + 1, editingRoom.maxOccupants)
+                          currentOccupants: newOccupants
                         });
                         alert("Gán người thuê thành công!");
                       }

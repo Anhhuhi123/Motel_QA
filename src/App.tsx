@@ -22,6 +22,12 @@ import { formatMonthLabel, roomStatusLabel } from "./utils";
 const generateId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+// Source of truth for occupancy is the tenants list itself (roomAssignment field),
+// not a manually incremented/decremented counter — that drifts out of sync when
+// assignments change concurrently.
+const countRoomOccupants = (tenantsList: Tenant[], roomNumber: string) =>
+  tenantsList.filter(t => t.roomAssignment === `Room ${roomNumber}`).length;
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -119,14 +125,15 @@ export default function App() {
       return;
     }
 
-    setTenants(prev => [newTenant, ...prev]);
+    const updatedTenants = [newTenant, ...tenants];
+    setTenants(updatedTenants);
 
-    // Automatically change associated room's status to Occupied and increment occupants counts!
+    // Automatically change associated room's status to Occupied and recompute occupants count!
     const targetRoomNumber = newTenantData.roomAssignment.replace("Room ", "");
     const targetRoom = rooms.find(r => r.number === targetRoomNumber);
 
     if (targetRoom) {
-      const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
+      const newOccupants = Math.min(countRoomOccupants(updatedTenants, targetRoom.number), targetRoom.maxOccupants);
       const roomSuccess = await api.updateRoom(targetRoom.id, {
         status: "Occupied",
         currentOccupants: newOccupants
@@ -347,24 +354,34 @@ export default function App() {
     const targetTenant = tenants.find(t => t.id === tenantId);
 
     if (targetRoom && targetTenant) {
-      const newOccupants = Math.min(targetRoom.currentOccupants + 1, targetRoom.maxOccupants);
+      const previousRoomNumber = targetTenant.roomAssignment.replace("Room ", "");
+      const previousRoom = previousRoomNumber && previousRoomNumber !== targetRoom.number
+        ? rooms.find(r => r.number === previousRoomNumber)
+        : undefined;
 
-      const [tenantSuccess, roomSuccess] = await Promise.all([
+      const updatedTenants = tenants.map(t =>
+        t.id === tenantId ? { ...t, roomAssignment: `Room ${targetRoom.number}` } : t
+      );
+      const newOccupants = Math.min(countRoomOccupants(updatedTenants, targetRoom.number), targetRoom.maxOccupants);
+      const previousOccupants = previousRoom ? countRoomOccupants(updatedTenants, previousRoom.number) : 0;
+      const previousStatus = previousRoom ? (previousOccupants === 0 ? "Available" : previousRoom.status) : undefined;
+
+      const roomUpdates = [api.updateRoom(roomId, { status: "Occupied", currentOccupants: newOccupants })];
+      if (previousRoom) {
+        roomUpdates.push(api.updateRoom(previousRoom.id, { status: previousStatus, currentOccupants: previousOccupants }));
+      }
+
+      const [tenantSuccess, ...roomSuccesses] = await Promise.all([
         api.updateTenant(tenantId, { roomAssignment: `Room ${targetRoom.number}` }),
-        api.updateRoom(roomId, { status: "Occupied", currentOccupants: newOccupants })
+        ...roomUpdates
       ]);
 
-      if (!tenantSuccess || !roomSuccess) {
+      if (!tenantSuccess || roomSuccesses.some(success => !success)) {
         alert("Không thể gán người thuê vào phòng trong cơ sở dữ liệu.");
         return;
       }
 
-      setTenants(prev => prev.map(t => {
-        if (t.id === tenantId) {
-          return { ...t, roomAssignment: `Room ${targetRoom.number}` };
-        }
-        return t;
-      }));
+      setTenants(updatedTenants);
 
       setRooms(prev => prev.map(room => {
         if (room.id === roomId) {
@@ -372,6 +389,13 @@ export default function App() {
             ...room,
             status: "Occupied",
             currentOccupants: newOccupants
+          };
+        }
+        if (previousRoom && room.id === previousRoom.id) {
+          return {
+            ...room,
+            status: previousStatus!,
+            currentOccupants: previousOccupants
           };
         }
         return room;
@@ -396,7 +420,10 @@ export default function App() {
     const targetTenant = tenants.find(t => t.id === tenantId);
 
     if (targetRoom && targetTenant) {
-      const newOccupants = Math.max(targetRoom.currentOccupants - 1, 0);
+      const updatedTenants = tenants.map(t =>
+        t.id === tenantId ? { ...t, roomAssignment: "" } : t
+      );
+      const newOccupants = countRoomOccupants(updatedTenants, targetRoom.number);
       const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
 
       const [tenantSuccess, roomSuccess] = await Promise.all([
@@ -409,12 +436,7 @@ export default function App() {
         return;
       }
 
-      setTenants(prev => prev.map(t => {
-        if (t.id === tenantId) {
-          return { ...t, roomAssignment: "" };
-        }
-        return t;
-      }));
+      setTenants(updatedTenants);
 
       setRooms(prev => prev.map(room => {
         if (room.id === roomId) {
@@ -521,14 +543,15 @@ export default function App() {
                 return;
               }
 
-              setTenants(prev => prev.filter(t => t.id !== tenantId));
+              const updatedTenants = tenants.filter(t => t.id !== tenantId);
+              setTenants(updatedTenants);
 
               // Decrease occupants in their room if assigned
               if (tenantToRemove && tenantToRemove.roomAssignment) {
                 const roomNumber = tenantToRemove.roomAssignment.replace("Room ", "");
                 const targetRoom = rooms.find(r => r.number === roomNumber);
                 if (targetRoom) {
-                  const newOccupants = Math.max((targetRoom.currentOccupants || 1) - 1, 0);
+                  const newOccupants = countRoomOccupants(updatedTenants, targetRoom.number);
                   const newStatus = newOccupants === 0 ? "Available" : targetRoom.status;
 
                   await api.updateRoom(targetRoom.id, { currentOccupants: newOccupants, status: newStatus });
